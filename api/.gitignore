@@ -1,62 +1,73 @@
-# Node modules  
-node_modules/
+# Node modules
+/node_modules/
 
-# Vite build output
-dist/
-dist-ssr/
-*.local
+# Build outputs
+/dist/
+/build/
+/dist-electron/
 
-# Electron build output
-out/
-release/
-build/
+# Vite cache
+/.vite/
+
+# Electron build outputs
+/out/
+/release/
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-logs/
 *.log
 
-# Environment files
-.env
-.env.*
-!.env.example
-
-# Cache
-.vite/
-.cache/
-.eslintcache
-*.tsbuildinfo
-
-# OS generated files
-Thumbs.db
+# OS files
 .DS_Store
+Thumbs.db
 
-# Editor folders
+# IDEs / editors
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
-# Electron packaging caches
-electron-builder.yml
-electron-builder.env
-electron-builder-cache/
-electron-builder-appx/
-electron-builder-out/
+# Dependency directories (optional package managers)
+.pnp/
+.pnp.js
 
-# Temp
-tmp/
-temp/
+# Test coverage
+/coverage/
+
+# Temporary files
 *.tmp
+*.temp
+*.swp
+*.swo
 
-# Optional: Ignore test coverage
-coverage/
+# Archives / local exports
+/api.zip
+*.zip
 
-# Optional: Ignore lock files (if using only one package manager)
+# Lockfiles - recommended to track (do NOT ignore package-lock.json or yarn.lock)
+# If you intentionally want to ignore lockfiles uncomment the next line:
 # package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
 
-# Build artifacts
-app.zip
+# Misc
+.vscode-test/
+dist/
+.cache/
+.vagrant/
+
+# Mac specific
+.AppleDouble
+.LSOverride
+
+# Windows specific
+ehthumbs.db
+Desktop.ini

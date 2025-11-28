@@ -5,7 +5,6 @@ const cors = require('cors');
 const path = require('path');
 const http = require('http');
 const socketIo = require('socket.io');
-const bodyParser = require('body-parser');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -29,8 +28,17 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url} - Content-Type: ${req.headers['content-type']}`);
+  next();
+});
 app.use('/uploads', express.static('uploads'));
+
+// Root route to check API status
+app.get('/', (req, res) => {
+  res.json({ message: 'API is working right now' });
+});
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://admin:<db_password>@ilets-exam-0.bnlsm9u.mongodb.net/?appName=ILETS-EXAM-0', {

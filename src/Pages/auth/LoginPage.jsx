@@ -15,18 +15,26 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Listen for PC fingerprint from main process
-    const setupIPC = () => {
-      if (window.electronAPI) {
-        window.electronAPI.onFingerprint((event, fingerprint) => {
-          setFingerprint(fingerprint);
-        });
-      } else {
-        setTimeout(setupIPC, 100);
+    const fetchFingerprint = async () => {
+      try {
+        if (!window.electronAPI?.getFingerprint) {
+          throw new Error('electronAPI not available');
+        }
+        const fp = await window.electronAPI.getFingerprint();
+        setFingerprint(fp);
+      } catch (err) {
+        console.error('Failed to get fingerprint:', err);
+        // For testing, set default fingerprint if getFingerprint fails
+        const defaultFingerprint = {
+          macAddress: '00:00:00:00:00:00',
+          uuid: 'test-uuid-123',
+          hostname: 'test-hostname',
+          platform: 'test-platform'
+        };
+        setFingerprint(defaultFingerprint);
       }
     };
-
-    setupIPC();
+    fetchFingerprint();
   }, []);
 
   const handleChange = (e) => {
@@ -50,19 +58,20 @@ const LoginPage = () => {
       return;
     }
 
-    if (!fingerprint) {
-      setError('PC fingerprint not available');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const payload = {
-        ...formData,
-        ...fingerprint
+      const defaultFingerprint = {
+        macAddress: '00:00:00:00:00:00',
+        uuid: 'test-uuid-123',
+        hostname: 'test-hostname',
+        platform: 'test-platform'
       };
 
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/login`, payload);
+      const payload = {
+        ...formData,
+        ...(fingerprint || defaultFingerprint)
+      };
+
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, payload);
       setSuccess('Login successful! Redirecting...');
 
       // Store student data in localStorage and electron-store
@@ -177,7 +186,7 @@ const LoginPage = () => {
 
             <button
               type="submit"
-              disabled={loading || !fingerprint}
+              disabled={loading}
               className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               {loading ? 'Logging in...' : 'Login'}

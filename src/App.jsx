@@ -37,8 +37,9 @@ function App() {
     <Router>
       <Suspense fallback={<div>Loading...</div>}>
         <Routes>
-          <Route path="/" element={<LoadingPage />} />
-          <Route path="/login" element={<LoginPage />} />
+          {/* <Route path="/" element={<LoadingPage />} /> */}
+          {/* <Route path="/login" element={<LoginPage />} /> */}
+          <Route path="/" element={<LoginPage />} />
           <Route path="/agent-login" element={<AgentLoginPage />} />
           <Route path="/admin-login" element={<AdminPage />} />
           <Route path="/register" element={<RegisterPage />} />
