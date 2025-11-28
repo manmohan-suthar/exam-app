@@ -133,12 +133,15 @@ const SpeakingPlayground = () => {
         setSocketConnected(true);
       });
 
-      newSocket.on("agent-joined", () => {
-        setAgentConnected(true);
+      newSocket.on("peer-joined", (data) => {
+        if (data.role === 'agent') {
+          console.log('Student: Agent joined the room');
+          setAgentConnected(true);
+        }
       });
 
       newSocket.on("permission-granted", () => {
-        console.log("Permission granted - waiting for agent to start video call");
+        console.log("Student: Permission granted - waiting for agent to start video call");
         setPermissionGranted(true);
         // Agent will send offer to start video call
       });
@@ -146,7 +149,7 @@ const SpeakingPlayground = () => {
       // WebRTC signaling
       newSocket.on("offer", handleOffer);
       newSocket.on("answer", handleAnswer);
-      newSocket.on("ice-candidate", handleIceCandidate);
+      newSocket.on("ice", handleIceCandidate);
 
       newSocket.on("change-section", (section) => {
         console.log("Agent changed section to:", section);
@@ -203,6 +206,7 @@ const SpeakingPlayground = () => {
   // --- start exam (called when video call established) ---
   const startExam = async () => {
     try {
+      console.log('Student: Starting exam via API call');
       const resp = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${test.assignmentId}`,
         {
@@ -217,11 +221,12 @@ const SpeakingPlayground = () => {
 
       if (!resp.ok) throw new Error("Failed to start exam");
 
+      console.log('Student: Exam started successfully');
       setExamStarted(true);
       setTimeLeft((test.duration || 60) * 60); // minutes -> seconds
       setWaitingForAgent(false);
     } catch (err) {
-      console.error(err);
+      console.error('Student: Failed to start exam:', err);
       setError("Failed to start exam. Please try again.");
     }
   };
@@ -393,7 +398,8 @@ const SpeakingPlayground = () => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socketRef.current) {
-        socketRef.current.emit('ice-candidate', {
+        console.log('Student: Sending ICE candidate');
+        socketRef.current.emit('ice', {
           room: test.assignmentId,
           candidate: event.candidate
         });
@@ -401,25 +407,29 @@ const SpeakingPlayground = () => {
     };
 
     pc.ontrack = (event) => {
+      console.log('Student: Received remote stream from agent');
       setRemoteStream(event.streams[0]);
     };
 
     pc.onconnectionstatechange = () => {
-      console.log('Student connection state:', pc.connectionState);
+      console.log('Student: WebRTC connection state changed to:', pc.connectionState);
       if (pc.connectionState === 'connected') {
         setIsVideoCallActive(true);
         setVideoCallError(null);
-        console.log('Student video call connected successfully');
+        console.log('Student: Video call connected successfully');
         // Start exam when video call is connected
         if (!examStarted) {
+          console.log('Student: Starting exam after video call connected');
           startExam();
         }
       } else if (pc.connectionState === 'connecting') {
-        console.log('Student video call connecting...');
+        console.log('Student: Video call connecting...');
       } else if (pc.connectionState === 'disconnected') {
+        console.log('Student: Video call disconnected');
         setVideoCallError('Video call disconnected');
         setIsVideoCallActive(false);
       } else if (pc.connectionState === 'failed') {
+        console.log('Student: Video call connection failed');
         setVideoCallError('Video call connection failed');
         setIsVideoCallActive(false);
       }
@@ -430,22 +440,24 @@ const SpeakingPlayground = () => {
 
   const startLocalVideo = async () => {
     try {
-      console.log('Student requesting camera/microphone access');
+      console.log('Student: Requesting camera/microphone access');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480 },
         audio: true
       });
-      console.log('Student got media stream:', stream);
+      console.log('Student: Got media stream:', stream);
       setLocalStream(stream);
       setVideoCallError(null); // Clear any previous errors
+      console.log('Student: Local stream set successfully');
       return stream;
     } catch (error) {
-      console.error('Error accessing camera/microphone:', error);
+      console.error('Student: Error accessing camera/microphone:', error);
       let errorMessage = 'Unable to access camera and microphone.';
       if (error.name === 'NotAllowedError') {
         errorMessage = 'Camera/microphone access denied. Please allow access in your browser.';
         setPermissionError(errorMessage);
         setShowPermissionModal(true);
+        console.log('Student: Showing permission modal due to access denied');
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'No camera/microphone found. Please connect a camera and microphone.';
         setVideoCallError(errorMessage);
@@ -484,48 +496,56 @@ const SpeakingPlayground = () => {
 
   const handleOffer = async (data) => {
     try {
-      console.log('Student received offer from agent, creating answer');
+      console.log('Student: Received offer from agent, creating answer');
       const pc = initializePeerConnection();
       setPeerConnection(pc);
 
+      console.log('Student: Starting local video for answer');
       const stream = await startLocalVideo();
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      console.log('Student: Setting remote description');
+      await pc.setRemoteDescription(new RTCSessionDescription({type: 'offer', sdp: data.sdp}));
+      console.log('Student: Creating answer');
       const answer = await pc.createAnswer();
+      console.log('Student: Setting local description');
       await pc.setLocalDescription(answer);
 
-      console.log('Student sending answer');
+      console.log('Student: Sending answer to agent');
       if (socketRef.current) {
         socketRef.current.emit('answer', {
           room: test.assignmentId,
-          answer: answer
+          sdp: answer.sdp
         });
-        console.log('Student answer sent successfully');
+        console.log('Student: Answer sent successfully');
       }
     } catch (error) {
-      console.error('Error handling offer:', error);
+      console.error('Student: Error handling offer:', error);
       setVideoCallError('Failed to join video call. Please check camera permissions.');
     }
   };
 
   const handleAnswer = async (data) => {
     try {
+      console.log('Student: Received answer from agent');
       if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        await peerConnection.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: data.sdp}));
+        console.log('Student: Remote description set for answer');
       }
     } catch (error) {
-      console.error('Error handling answer:', error);
+      console.error('Student: Error handling answer:', error);
     }
   };
 
   const handleIceCandidate = async (data) => {
     try {
+      console.log('Student: Received ICE candidate from agent');
       if (peerConnection && data.candidate) {
         await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        console.log('Student: ICE candidate added');
       }
     } catch (error) {
-      console.error('Error handling ICE candidate:', error);
+      console.error('Student: Error handling ICE candidate:', error);
     }
   };
 
@@ -640,7 +660,7 @@ const SpeakingPlayground = () => {
           {waitingForAgent && !permissionGranted && !isVideoCallActive && (
             <div className="flex flex-col items-center justify-center flex-1 gap-6">
               <div className="animate-pulse text-gray-500 text-lg text-center">
-                Waiting for agent permission to start the exam...
+                Waiting for agent permission to start the exam... 0001
               </div>
 
               <div className="text-center text-sm">

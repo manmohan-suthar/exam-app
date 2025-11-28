@@ -37,7 +37,7 @@ app.use('/uploads', express.static('uploads'));
 
 // Root route to check API status
 app.get('/', (req, res) => {
-  res.json({ message: 'API is working right now update v 1.0.0' });
+  res.json({ message: 'API is working right now update v 1.0.1' });
 });
 
 // MongoDB connection
@@ -101,10 +101,23 @@ io.on('connection', (socket) => {
 
   // WebRTC signaling
   socket.on('join', ({ room, role }) => {
+    socket.role = role;
     socket.join(room);
     console.log(`${socket.id} joined ${room} as ${role}`);
     // notify other peers
     socket.to(room).emit('peer-joined', { id: socket.id, role });
+    // notify the new peer about existing peers
+    const roomSockets = io.sockets.adapter.rooms.get(room);
+    if (roomSockets) {
+      roomSockets.forEach(clientId => {
+        if (clientId !== socket.id) {
+          const clientSocket = io.sockets.sockets.get(clientId);
+          if (clientSocket) {
+            socket.emit('peer-joined', { id: clientId, role: clientSocket.role });
+          }
+        }
+      });
+    }
   });
 
   socket.on('offer', data => {

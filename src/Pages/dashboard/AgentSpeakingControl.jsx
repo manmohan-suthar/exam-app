@@ -125,19 +125,29 @@ const AgentspeakingControl = () => {
         } catch (error) {
           console.error('Failed to start local video:', error);
         }
-        handleConnect();
       }, 1000);
     });
 
     newSocket.on('peer-joined', (data) => {
-      console.log('Peer joined:', data);
+      console.log('Agent: Peer joined:', data);
       if (data.role === 'student') {
         setStudentConnected(true);
+        // Grant permission and start video call when student joins
+        console.log('Agent: Student joined, granting permission and starting video call');
+        socketRef.current.emit('grant-permission', examId);
+        setTimeout(async () => {
+          console.log('Agent: Calling createOffer after student joined');
+          try {
+            await createOffer();
+            console.log('Agent: createOffer completed successfully');
+          } catch (error) {
+            console.error('Agent: createOffer failed:', error);
+          }
+        }, 1000);
       }
     });
 
     // WebRTC signaling
-    newSocket.on('offer', handleOffer);
     newSocket.on('answer', handleAnswer);
     newSocket.on('ice', handleIceCandidate);
 
@@ -171,24 +181,6 @@ const AgentspeakingControl = () => {
     };
   }, [examId]);
 
-  const handleConnect = async () => {
-    if (socketRef.current) {
-      console.log('Agent handleConnect called - granting permission and starting video call');
-      socketRef.current.emit('grant-permission', examId);
-      // Wait a moment for permission to be processed, then start video call
-      setTimeout(async () => {
-        console.log('Agent calling createOffer');
-        try {
-          await createOffer();
-          console.log('Agent createOffer completed successfully');
-        } catch (error) {
-          console.error('Agent createOffer failed:', error);
-        }
-      }, 1000);
-    } else {
-      console.error('Agent socket not available');
-    }
-  };
 
   const changeSection = (section) => {
     setCurrentSection(section);
@@ -271,6 +263,7 @@ const AgentspeakingControl = () => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socketRef.current) {
+        console.log('Agent: Sending ICE candidate');
         socketRef.current.emit('ice', {
           room: examId,
           candidate: event.candidate
@@ -279,21 +272,24 @@ const AgentspeakingControl = () => {
     };
 
     pc.ontrack = (event) => {
+      console.log('Agent: Received remote stream from student');
       setRemoteStream(event.streams[0]);
     };
 
     pc.onconnectionstatechange = () => {
-      console.log('Agent connection state:', pc.connectionState);
+      console.log('Agent: WebRTC connection state changed to:', pc.connectionState);
       if (pc.connectionState === 'connected') {
         setIsVideoCallActive(true);
         setVideoCallError(null);
-        console.log('Agent video call connected successfully');
+        console.log('Agent: Video call connected successfully');
       } else if (pc.connectionState === 'connecting') {
-        console.log('Agent video call connecting...');
+        console.log('Agent: Video call connecting...');
       } else if (pc.connectionState === 'disconnected') {
+        console.log('Agent: Video call disconnected');
         setVideoCallError('Video call disconnected');
         setIsVideoCallActive(false);
       } else if (pc.connectionState === 'failed') {
+        console.log('Agent: Video call connection failed');
         setVideoCallError('Video call connection failed');
         setIsVideoCallActive(false);
       }
@@ -304,22 +300,24 @@ const AgentspeakingControl = () => {
 
   const startLocalVideo = async () => {
     try {
-      console.log('Agent requesting camera/microphone access');
+      console.log('Agent: Requesting camera/microphone access');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480 },
         audio: true
       });
-      console.log('Agent got media stream:', stream);
+      console.log('Agent: Got media stream:', stream);
       setLocalStream(stream);
       setVideoCallError(null); // Clear any previous errors
+      console.log('Agent: Local stream set successfully');
       return stream;
     } catch (error) {
-      console.error('Error accessing camera/microphone:', error);
+      console.error('Agent: Error accessing camera/microphone:', error);
       let errorMessage = 'Unable to access camera and microphone.';
       if (error.name === 'NotAllowedError') {
         errorMessage = 'Camera/microphone access denied. Please allow access in your browser.';
         setPermissionError(errorMessage);
         setShowPermissionModal(true);
+        console.log('Agent: Showing permission modal due to access denied');
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'No camera/microphone found. Please connect a camera and microphone.';
         setVideoCallError(errorMessage);
@@ -395,7 +393,7 @@ const AgentspeakingControl = () => {
 
   const createOffer = async () => {
     try {
-      console.log('Agent creating WebRTC offer');
+      console.log('Agent: Creating WebRTC offer');
       const pc = initializePeerConnection();
       setPeerConnection(pc);
 
@@ -403,23 +401,27 @@ const AgentspeakingControl = () => {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       } else {
         // Fallback: start local video if not already started
+        console.log('Agent: Starting local video for offer');
         const stream = await startLocalVideo();
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
       }
 
+      console.log('Agent: Creating offer');
       const offer = await pc.createOffer();
+      console.log('Agent: Setting local description');
       await pc.setLocalDescription(offer);
 
-      console.log('Agent sending offer to room:', examId);
+      console.log('Agent: Sending offer to room:', examId);
       if (socketRef.current) {
         socketRef.current.emit('offer', {
           room: examId,
           sdp: offer.sdp,
           from: socketRef.current.id
         });
+        console.log('Agent: Offer sent successfully');
       }
     } catch (error) {
-      console.error('Error creating offer:', error);
+      console.error('Agent: Error creating offer:', error);
       setVideoCallError('Failed to start video call');
     }
   };
@@ -458,21 +460,25 @@ const AgentspeakingControl = () => {
 
   const handleAnswer = async (data) => {
     try {
+      console.log('Agent: Received answer from student');
       if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        await peerConnection.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: data.sdp}));
+        console.log('Agent: Remote description set for answer');
       }
     } catch (error) {
-      console.error('Error handling answer:', error);
+      console.error('Agent: Error handling answer:', error);
     }
   };
 
   const handleIceCandidate = async (data) => {
     try {
+      console.log('Agent: Received ICE candidate from student');
       if (peerConnection && data.candidate) {
         await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        console.log('Agent: ICE candidate added');
       }
     } catch (error) {
-      console.error('Error handling ICE candidate:', error);
+      console.error('Agent: Error handling ICE candidate:', error);
     }
   };
 
