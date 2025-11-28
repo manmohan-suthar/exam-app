@@ -128,10 +128,8 @@ const SpeakingPlayground = () => {
 
       newSocket.on("connect", () => {
         console.log("Student connected to Socket.IO, assignmentId:", test.assignmentId);
-        newSocket.emit("join-exam-room", test.assignmentId);
+        newSocket.emit('join', { room: test.assignmentId, role: 'student' });
         console.log("Student joining exam room:", test.assignmentId);
-        newSocket.emit("student-joined", test.assignmentId);
-        console.log("Student announced joined to room:", test.assignmentId);
         setSocketConnected(true);
       });
 
