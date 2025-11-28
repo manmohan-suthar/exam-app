@@ -31,7 +31,7 @@ const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
   ];
 
   return (
-    <div className="w-64 bg-slate-900 shadow-xl min-h-screen flex flex-col">
+    <div className="w-64 bg-slate-900 shadow-xl h-screen flex flex-col">
       <div className="p-6 border-b border-slate-700 flex-shrink-0">
         <h2 className="text-2xl font-bold text-white">Admin Panel</h2>
         <p className="text-slate-400 text-sm mt-1">IELTS Exam Portal</p>
