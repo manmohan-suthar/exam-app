@@ -36,6 +36,7 @@ const SpeakingPlayground = () => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const socketRef = useRef(null);
+  const iceCandidatesQueueRef = useRef([]);
 
   const [examStarted, setExamStarted] = useState(false);
   const [examEnded, setExamEnded] = useState(false);
@@ -496,6 +497,18 @@ const SpeakingPlayground = () => {
     }
   };
 
+  const processQueuedIceCandidates = async () => {
+    while (iceCandidatesQueueRef.current.length > 0) {
+      const candidate = iceCandidatesQueueRef.current.shift();
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log('Student: Queued ICE candidate added');
+      } catch (error) {
+        console.error('Student: Error adding queued ICE candidate:', error);
+      }
+    }
+  };
+
   const handleOffer = async (data) => {
     try {
       console.log('Student: Received offer from agent, creating answer');
@@ -512,6 +525,8 @@ const SpeakingPlayground = () => {
       const answer = await pc.createAnswer();
       console.log('Student: Setting local description');
       await pc.setLocalDescription(answer);
+
+      await processQueuedIceCandidates();
 
       console.log('Student: Sending answer to agent');
       if (socketRef.current) {
@@ -543,8 +558,13 @@ const SpeakingPlayground = () => {
     try {
       console.log('Student: Received ICE candidate from agent');
       if (peerConnection && data.candidate) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-        console.log('Student: ICE candidate added');
+        if (peerConnection.remoteDescription) {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          console.log('Student: ICE candidate added');
+        } else {
+          iceCandidatesQueueRef.current.push(data.candidate);
+          console.log('Student: ICE candidate queued');
+        }
       }
     } catch (error) {
       console.error('Student: Error handling ICE candidate:', error);

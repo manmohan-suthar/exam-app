@@ -32,6 +32,7 @@ const AgentspeakingControl = () => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const socketRef = useRef(null);
+  const iceCandidatesQueueRef = useRef([]);
 
   const studentName = exam?.student?.name || 'Student';
   const agentName = 'Agent';
@@ -412,8 +413,7 @@ const AgentspeakingControl = () => {
       if (socketRef.current) {
         socketRef.current.emit('offer', {
           room: examId,
-          sdp: offer.sdp,
-          from: socketRef.current.id
+          sdp: offer.sdp
         });
         console.log('Agent: Offer sent successfully');
       }
@@ -455,12 +455,25 @@ const AgentspeakingControl = () => {
     }
   };
 
+  const processQueuedIceCandidates = async () => {
+    while (iceCandidatesQueueRef.current.length > 0) {
+      const candidate = iceCandidatesQueueRef.current.shift();
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log('Agent: Queued ICE candidate added');
+      } catch (error) {
+        console.error('Agent: Error adding queued ICE candidate:', error);
+      }
+    }
+  };
+
   const handleAnswer = async (data) => {
     try {
       console.log('Agent: Received answer from student');
       if (peerConnection) {
         await peerConnection.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: data.sdp}));
         console.log('Agent: Remote description set for answer');
+        await processQueuedIceCandidates();
       }
     } catch (error) {
       console.error('Agent: Error handling answer:', error);
@@ -471,8 +484,13 @@ const AgentspeakingControl = () => {
     try {
       console.log('Agent: Received ICE candidate from student');
       if (peerConnection && data.candidate) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-        console.log('Agent: ICE candidate added');
+        if (peerConnection.remoteDescription) {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          console.log('Agent: ICE candidate added');
+        } else {
+          iceCandidatesQueueRef.current.push(data.candidate);
+          console.log('Agent: ICE candidate queued');
+        }
       }
     } catch (error) {
       console.error('Agent: Error handling ICE candidate:', error);
