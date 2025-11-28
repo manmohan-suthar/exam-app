@@ -40,12 +40,14 @@ const AgentspeakingControl = () => {
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(e => console.log('Agent local video play failed', e));
     }
   }, [localStream]);
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(e => console.log('Agent remote video play failed', e));
     }
   }, [remoteStream]);
 
@@ -114,19 +116,13 @@ const AgentspeakingControl = () => {
     socketRef.current = newSocket;
 
     newSocket.on('connect', () => {
-      console.log('Agent connected to Socket.IO, examId:', examId);
-      newSocket.emit('join', { room: examId, role: 'agent' });
-      console.log('Agent joining exam room:', examId);
-      setConnected(true);
-      // Start local video immediately when agent connects
-      setTimeout(async () => {
-        try {
-          await startLocalVideo();
-        } catch (error) {
-          console.error('Failed to start local video:', error);
-        }
-      }, 1000);
-    });
+       console.log('Agent connected to Socket.IO, examId:', examId);
+       newSocket.emit('join', { room: examId, role: 'agent' });
+       console.log('Agent joining exam room:', examId);
+       setConnected(true);
+       // Start local video immediately when agent connects
+       startLocalVideo();
+     });
 
     newSocket.on('peer-joined', (data) => {
       console.log('Agent: Peer joined:', data);
@@ -257,7 +253,8 @@ const AgentspeakingControl = () => {
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' }
+        { urls: 'stun:stun4.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     });
 
@@ -274,12 +271,12 @@ const AgentspeakingControl = () => {
     pc.ontrack = (event) => {
       console.log('Agent: Received remote stream from student');
       setRemoteStream(event.streams[0]);
+      setIsVideoCallActive(true);
     };
 
     pc.onconnectionstatechange = () => {
       console.log('Agent: WebRTC connection state changed to:', pc.connectionState);
       if (pc.connectionState === 'connected') {
-        setIsVideoCallActive(true);
         setVideoCallError(null);
         console.log('Agent: Video call connected successfully');
       } else if (pc.connectionState === 'connecting') {

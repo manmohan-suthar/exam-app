@@ -47,12 +47,14 @@ const SpeakingPlayground = () => {
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(e => console.log('Student local video play failed', e));
     }
   }, [localStream]);
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(e => console.log('Student remote video play failed', e));
     }
   }, [remoteStream]);
 
@@ -392,7 +394,8 @@ const SpeakingPlayground = () => {
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' }
+        { urls: 'stun:stun4.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     });
 
@@ -409,19 +412,18 @@ const SpeakingPlayground = () => {
     pc.ontrack = (event) => {
       console.log('Student: Received remote stream from agent');
       setRemoteStream(event.streams[0]);
+      setIsVideoCallActive(true);
+      if (!examStarted) {
+        console.log('Student: Starting exam after receiving remote stream');
+        startExam();
+      }
     };
 
     pc.onconnectionstatechange = () => {
       console.log('Student: WebRTC connection state changed to:', pc.connectionState);
       if (pc.connectionState === 'connected') {
-        setIsVideoCallActive(true);
         setVideoCallError(null);
         console.log('Student: Video call connected successfully');
-        // Start exam when video call is connected
-        if (!examStarted) {
-          console.log('Student: Starting exam after video call connected');
-          startExam();
-        }
       } else if (pc.connectionState === 'connecting') {
         console.log('Student: Video call connecting...');
       } else if (pc.connectionState === 'disconnected') {
