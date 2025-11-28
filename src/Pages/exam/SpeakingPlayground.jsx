@@ -689,34 +689,38 @@ const SpeakingPlayground = () => {
         <aside className="lg:col-span-3 w-full h-screen p-4 bg-[#F2F2F2] flex flex-col">
 
           {/* Video Feeds */}
-          {isVideoCallActive && (
+          {(isVideoCallActive || localStream) && (
             <div className="flex-1 space-y-4">
               {/* Agent Video (Remote) */}
-              <div className="bg-black rounded-lg overflow-hidden">
-                <div className="p-2 bg-gray-800 text-white text-sm font-medium">
-                  Agent
+              {isVideoCallActive && (
+                <div className="bg-black rounded-lg overflow-hidden">
+                  <div className="p-2 bg-gray-800 text-white text-sm font-medium">
+                    Agent
+                  </div>
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-48 object-cover"
+                  />
                 </div>
-                <video
-                  ref={remoteVideoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-48 object-cover"
-                />
-              </div>
+              )}
 
               {/* Student Video (Local) */}
-              <div className="bg-black rounded-lg overflow-hidden">
-                <div className="p-2 bg-gray-800 text-white text-sm font-medium">
-                  You ({studentName})
+              {localStream && (
+                <div className="bg-black rounded-lg overflow-hidden">
+                  <div className="p-2 bg-gray-800 text-white text-sm font-medium">
+                    You ({studentName})
+                  </div>
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-32 object-cover"
+                  />
                 </div>
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-32 object-cover"
-                />
-              </div>
+              )}
             </div>
           )}
 
