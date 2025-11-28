@@ -1,11 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import io from 'socket.io-client';
 
 export default function ReadingPlayground() {
   const [paper, setPaper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPart, setCurrentPart] = useState(0);
   const [answers, setAnswers] = useState({});
+
+  // WebRTC states
+  const [socket, setSocket] = useState(null);
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [peerConnection, setPeerConnection] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState('');
+
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,6 +52,167 @@ export default function ReadingPlayground() {
       cancelled = true;
     };
   }, [test]);
+
+  // WebRTC functions
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('ice', {
+          room: test._id,
+          candidate: event.candidate
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      setRemoteStream(event.streams[0]);
+    };
+
+    pc.onconnectionstatechange = () => {
+      setIsConnected(pc.connectionState === 'connected');
+    };
+
+    return pc;
+  };
+
+  const startVideoCall = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+      setLocalStream(stream);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const pc = createPeerConnection();
+      setPeerConnection(pc);
+
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      // Join room as student
+      socket.emit('join', { room: test._id, role: 'student' });
+
+    } catch (err) {
+      console.error('Error starting video call:', err);
+      setError('Failed to access camera/microphone');
+    }
+  };
+
+  const handleOffer = async (data) => {
+    if (!peerConnection) return;
+
+    try {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription({
+        type: 'offer',
+        sdp: data.sdp
+      }));
+
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+
+      socket.emit('answer', {
+        room: test._id,
+        sdp: answer.sdp,
+        from: socket.id
+      });
+    } catch (err) {
+      console.error('Error handling offer:', err);
+    }
+  };
+
+  const handleAnswer = async (data) => {
+    if (!peerConnection) return;
+
+    try {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription({
+        type: 'answer',
+        sdp: data.sdp
+      }));
+    } catch (err) {
+      console.error('Error handling answer:', err);
+    }
+  };
+
+  const handleIceCandidate = async (data) => {
+    if (!peerConnection) return;
+
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+    } catch (err) {
+      console.error('Error adding ICE candidate:', err);
+    }
+  };
+
+  // Socket connection and WebRTC setup
+  useEffect(() => {
+    const newSocket = io(import.meta.env.VITE_API_BASE_URL);
+    setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Student connected to Socket.IO');
+      startVideoCall();
+    });
+
+    newSocket.on('offer', handleOffer);
+    newSocket.on('answer', handleAnswer);
+    newSocket.on('ice', handleIceCandidate);
+
+    newSocket.on('peer-joined', (data) => {
+      console.log('Peer joined:', data);
+      // If agent joined and we haven't created offer yet, create offer
+      if (data.role === 'agent' && peerConnection && !peerConnection.localDescription) {
+        createOffer();
+      }
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Student disconnected from Socket.IO');
+    });
+
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      if (peerConnection) {
+        peerConnection.close();
+      }
+    };
+  }, [test]);
+
+  const createOffer = async () => {
+    if (!peerConnection) return;
+
+    try {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      socket.emit('offer', {
+        room: test._id,
+        sdp: offer.sdp,
+        from: socket.id
+      });
+    } catch (err) {
+      console.error('Error creating offer:', err);
+    }
+  };
+
+  // Set remote stream to video element
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   const currentQuestions = paper?.questions?.filter(q => q.unitNumber === currentPart + 1) || [];
 
@@ -443,6 +616,42 @@ export default function ReadingPlayground() {
           </div>
         </div>
       </header>
+
+      {/* Video Call Section */}
+      <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Local Video - You */}
+          <div className="bg-gray-100 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-2">You</h3>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-48 bg-black rounded"
+            />
+            {!localStream && <p className="text-gray-500 mt-2">Initializing camera...</p>}
+          </div>
+
+          {/* Remote Video - Agent */}
+          <div className="bg-gray-100 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-2">Agent</h3>
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-48 bg-black rounded"
+            />
+            {!isConnected && <p className="text-gray-500 mt-2">Waiting for agent...</p>}
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+      </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6 flex gap-6">
         {/* left sidebar */}

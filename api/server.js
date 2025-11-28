@@ -100,16 +100,29 @@ io.on('connection', (socket) => {
   });
 
   // WebRTC signaling
-  socket.on('offer', (data) => {
+  socket.on('join', ({ room, role }) => {
+    socket.join(room);
+    console.log(`${socket.id} joined ${room} as ${role}`);
+    // notify other peers
+    socket.to(room).emit('peer-joined', { id: socket.id, role });
+  });
+
+  socket.on('offer', data => {
+    // data: { room, sdp, from }
     socket.to(data.room).emit('offer', data);
   });
 
-  socket.on('answer', (data) => {
+  socket.on('answer', data => {
     socket.to(data.room).emit('answer', data);
   });
 
-  socket.on('ice-candidate', (data) => {
-    socket.to(data.room).emit('ice-candidate', data);
+  socket.on('ice', data => {
+    socket.to(data.room).emit('ice', data);
+  });
+
+  socket.on('leave', ({ room }) => {
+    socket.leave(room);
+    socket.to(room).emit('peer-left', { id: socket.id });
   });
 
   socket.on('disconnect', () => {

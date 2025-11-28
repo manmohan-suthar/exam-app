@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Eye, Video, Clock, CheckCircle, AlertCircle, LogOut } from 'lucide-react';
 import io from 'socket.io-client';
-import VideoCall from '../../Components/VideoCall';
 
 const AgentDashboard = () => {
   const navigate = useNavigate();
@@ -13,6 +12,16 @@ const AgentDashboard = () => {
   const [activeVideoCallExam, setActiveVideoCallExam] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [socket, setSocket] = useState(null);
+
+  // WebRTC states
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const [peerConnection, setPeerConnection] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [videoError, setVideoError] = useState('');
+
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
 
   useEffect(() => {
     // Check if agent is logged in
@@ -50,6 +59,12 @@ const AgentDashboard = () => {
       if (newSocket) {
         newSocket.disconnect();
       }
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      if (peerConnection) {
+        peerConnection.close();
+      }
     };
   }, [navigate]);
 
@@ -59,6 +74,37 @@ const AgentDashboard = () => {
       fetchAssignedExams(agent._id, localStorage.getItem('agentToken'));
     }
   }, [agent, loading]);
+
+  // WebRTC setup when activeVideoCallExam changes
+  useEffect(() => {
+    if (activeVideoCallExam && socket) {
+      initWebRTC();
+
+      socket.on('peer-joined', (data) => {
+        console.log('Peer joined:', data);
+        if (data.role === 'student') {
+          // Student joined, create offer
+          createOffer();
+        }
+      });
+
+      socket.on('answer', handleAnswer);
+      socket.on('ice', handleIceCandidate);
+
+      return () => {
+        socket.off('peer-joined');
+        socket.off('answer');
+        socket.off('ice');
+      };
+    }
+  }, [activeVideoCallExam, socket]);
+
+  // Set remote stream to video element
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   const fetchAssignedExams = async (agentId, agentToken) => {
     try {
@@ -225,6 +271,99 @@ const AgentDashboard = () => {
     console.log('Video call started for exam:', activeVideoCallExam?.id);
   };
 
+  // WebRTC functions
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('ice', {
+          room: activeVideoCallExam._id,
+          candidate: event.candidate
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      setRemoteStream(event.streams[0]);
+    };
+
+    pc.onconnectionstatechange = () => {
+      setIsConnected(pc.connectionState === 'connected');
+    };
+
+    return pc;
+  };
+
+  const initWebRTC = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+      setLocalStream(stream);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const pc = createPeerConnection();
+      setPeerConnection(pc);
+
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      // Join room as agent
+      socket.emit('join', { room: activeVideoCallExam._id, role: 'agent' });
+
+    } catch (err) {
+      console.error('Error starting video call:', err);
+      setVideoError('Failed to access camera/microphone');
+    }
+  };
+
+  const createOffer = async () => {
+    if (!peerConnection) return;
+
+    try {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      socket.emit('offer', {
+        room: activeVideoCallExam._id,
+        sdp: offer.sdp,
+        from: socket.id
+      });
+    } catch (err) {
+      console.error('Error creating offer:', err);
+    }
+  };
+
+  const handleAnswer = async (data) => {
+    if (!peerConnection) return;
+
+    try {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription({
+        type: 'answer',
+        sdp: data.sdp
+      }));
+    } catch (err) {
+      console.error('Error handling answer:', err);
+    }
+  };
+
+  const handleIceCandidate = async (data) => {
+    if (!peerConnection) return;
+
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+    } catch (err) {
+      console.error('Error adding ICE candidate:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -254,14 +393,48 @@ const AgentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Video Call Component */}
+      {/* Video Call Section */}
       {activeVideoCallExam && (
-        <VideoCall
-          examId={activeVideoCallExam._id}
-          isAgent={true}
-          onCallStarted={handleVideoCallStarted}
-          testMode={true}
-        />
+        <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4">
+          <h3 className="text-lg font-semibold mb-4">Video Call - {activeVideoCallExam.student.name}</h3>
+
+          <div className="grid grid-cols-1 gap-4">
+            {/* Local Video - You (Agent) */}
+            <div>
+              <h4 className="text-sm font-medium mb-2">You (Agent)</h4>
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-64 h-48 bg-black rounded"
+              />
+              {!localStream && <p className="text-gray-500 mt-1 text-xs">Initializing camera...</p>}
+            </div>
+
+            {/* Remote Video - Student */}
+            <div>
+              <h4 className="text-sm font-medium mb-2">Student</h4>
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-64 h-48 bg-black rounded"
+              />
+              {!isConnected && <p className="text-gray-500 mt-1 text-xs">Waiting for student...</p>}
+            </div>
+          </div>
+
+          {videoError && (
+            <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-xs">
+              {videoError}
+            </div>
+          )}
+
+          {isConnected && (
+            <div className="mt-2 text-xs text-green-600">Connected</div>
+          )}
+        </div>
       )}
 
       {/* Header */}

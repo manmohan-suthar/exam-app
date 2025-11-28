@@ -115,26 +115,31 @@ const AgentspeakingControl = () => {
 
     newSocket.on('connect', () => {
       console.log('Agent connected to Socket.IO, examId:', examId);
-      newSocket.emit('join-exam-room', examId);
+      newSocket.emit('join', { room: examId, role: 'agent' });
       console.log('Agent joining exam room:', examId);
-      newSocket.emit('agent-joined', examId);
-      console.log('Agent announced joined to room:', examId);
       setConnected(true);
-      // Start video call immediately when agent connects
-      setTimeout(() => {
+      // Start local video immediately when agent connects
+      setTimeout(async () => {
+        try {
+          await startLocalVideo();
+        } catch (error) {
+          console.error('Failed to start local video:', error);
+        }
         handleConnect();
       }, 1000);
     });
 
-    newSocket.on('student-joined', (socketId) => {
-      console.log('Student joined, student connected status updated');
-      setStudentConnected(true);
+    newSocket.on('peer-joined', (data) => {
+      console.log('Peer joined:', data);
+      if (data.role === 'student') {
+        setStudentConnected(true);
+      }
     });
 
     // WebRTC signaling
     newSocket.on('offer', handleOffer);
     newSocket.on('answer', handleAnswer);
-    newSocket.on('ice-candidate', handleIceCandidate);
+    newSocket.on('ice', handleIceCandidate);
 
     newSocket.on('disconnect', () => {
       console.log('Agent disconnected from Socket.IO');
@@ -266,7 +271,7 @@ const AgentspeakingControl = () => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socketRef.current) {
-        socketRef.current.emit('ice-candidate', {
+        socketRef.current.emit('ice', {
           room: examId,
           candidate: event.candidate
         });
@@ -394,8 +399,13 @@ const AgentspeakingControl = () => {
       const pc = initializePeerConnection();
       setPeerConnection(pc);
 
-      const stream = await startLocalVideo();
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      if (localStream) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      } else {
+        // Fallback: start local video if not already started
+        const stream = await startLocalVideo();
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      }
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -404,7 +414,8 @@ const AgentspeakingControl = () => {
       if (socketRef.current) {
         socketRef.current.emit('offer', {
           room: examId,
-          offer: offer
+          sdp: offer.sdp,
+          from: socketRef.current.id
         });
       }
     } catch (error) {
@@ -419,8 +430,13 @@ const AgentspeakingControl = () => {
       const pc = initializePeerConnection();
       setPeerConnection(pc);
 
-      const stream = await startLocalVideo();
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      if (localStream) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      } else {
+        // Fallback: start local video if not already started
+        const stream = await startLocalVideo();
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      }
 
       await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
       const answer = await pc.createAnswer();
@@ -430,7 +446,8 @@ const AgentspeakingControl = () => {
       if (socketRef.current) {
         socketRef.current.emit('answer', {
           room: examId,
-          answer: answer
+          sdp: answer.sdp,
+          from: socketRef.current.id
         });
       }
     } catch (error) {
@@ -649,36 +666,45 @@ const AgentspeakingControl = () => {
           <aside className=" w-full h-screen p-4 bg-white rounded-lg border border-gray-200 flex flex-col">
 
 {/* Video Feeds */}
-{isVideoCallActive && (
-  <div className="flex-1 space-y-4">
-    {/* Student Video (Remote) */}
-    <div className="bg-black rounded-lg overflow-hidden">
-      <div className="p-2 bg-gray-800 text-white text-sm font-medium">
-        Student ({studentName})
+<div className="flex-1 space-y-4">
+  {/* Agent Video (Local) - Always show when connected */}
+  <div className="bg-black rounded-lg overflow-hidden relative">
+    <div className="p-2 bg-gray-800 text-white text-sm font-medium">
+      You ({agentName})
+    </div>
+    <video
+      ref={localVideoRef}
+      autoPlay
+      playsInline
+      muted
+      className="w-full h-48 object-cover"
+    />
+    {!localStream && (
+      <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white text-sm">
+        Initializing camera...
       </div>
+    )}
+  </div>
+
+  {/* Student Video (Remote) */}
+  <div className="bg-black rounded-lg overflow-hidden relative">
+    <div className="p-2 bg-gray-800 text-white text-sm font-medium">
+      Student ({studentName})
+    </div>
+    {isVideoCallActive ? (
       <video
         ref={remoteVideoRef}
         autoPlay
         playsInline
         className="w-full h-48 object-cover"
       />
-    </div>
-
-    {/* Agent Video (Local) */}
-    <div className="bg-black rounded-lg overflow-hidden">
-      <div className="p-2 bg-gray-800 text-white text-sm font-medium">
-        You ({agentName})
+    ) : (
+      <div className="w-full h-48 flex items-center justify-center bg-gray-900 text-white text-sm">
+        {studentConnected ? "Connecting..." : "Waiting for student..."}
       </div>
-      <video
-        ref={localVideoRef}
-        autoPlay
-        playsInline
-        muted
-        className="w-full h-32 object-cover"
-      />
-    </div>
+    )}
   </div>
-)}
+</div>
 
 {/* Connection Status */}
 {connected && !isVideoCallActive && !videoCallError && (
