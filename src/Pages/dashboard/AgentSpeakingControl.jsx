@@ -34,19 +34,25 @@ const AgentspeakingControl = () => {
   const socketRef = useRef(null);
   const iceCandidatesQueueRef = useRef([]);
 
+  // Guards for one-time init
+  const initializedRef = useRef(false);
+  const pcRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const offerSentRef = useRef(false);
+
   const studentName = exam?.student?.name || 'Student';
   const agentName = 'Agent';
 
-  // Update video elements when streams change
+  // Update video elements when streams change (only set srcObject once)
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
+    if (localVideoRef.current && localStreamRef.current && !localVideoRef.current.srcObject) {
+      localVideoRef.current.srcObject = localStreamRef.current;
       localVideoRef.current.play().catch(e => console.log('Agent local video play failed', e));
     }
   }, [localStream]);
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
+    if (remoteVideoRef.current && remoteStream && !remoteVideoRef.current.srcObject) {
       remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.play().catch(e => console.log('Agent remote video play failed', e));
     }
@@ -107,9 +113,17 @@ const AgentspeakingControl = () => {
       } finally {
         setLoading(false);
       }
+
+      // Initialize Socket.IO and WebRTC after data is loaded
+      initializeSocketAndWebRTC();
     };
 
     fetchExam();
+  }, [examId]);
+
+  const initializeSocketAndWebRTC = () => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
     // Connect to Socket.IO
     const newSocket = io(import.meta.env.VITE_API_BASE_URL);
@@ -133,12 +147,14 @@ const AgentspeakingControl = () => {
         console.log('Agent: Student joined, granting permission and starting video call');
         socketRef.current.emit('grant-permission', examId);
         setTimeout(async () => {
-          console.log('Agent: Calling createOffer after student joined');
-          try {
-            await createOffer();
-            console.log('Agent: createOffer completed successfully');
-          } catch (error) {
-            console.error('Agent: createOffer failed:', error);
+          if (!offerSentRef.current) {
+            console.log('Agent: Calling createOffer after student joined');
+            try {
+              await createOffer();
+              console.log('Agent: createOffer completed successfully');
+            } catch (error) {
+              console.error('Agent: createOffer failed:', error);
+            }
           }
         }, 1000);
       }
@@ -152,31 +168,24 @@ const AgentspeakingControl = () => {
       console.log('Agent disconnected from Socket.IO');
       setConnected(false);
       // Close video call on disconnect
-      if (peerConnection) {
-        peerConnection.close();
-        setPeerConnection(null);
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        setLocalStream(null);
-      }
-      setRemoteStream(null);
-      setIsVideoCallActive(false);
+      cleanupWebRTC();
     });
+  };
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      if (newSocket) {
-        newSocket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.off('answer');
+        socketRef.current.off('ice');
+        socketRef.current.off('peer-joined');
+        socketRef.current.off('connect');
+        socketRef.current.off('disconnect');
+        socketRef.current.disconnect();
       }
-      // Cleanup video streams
-      if (peerConnection) {
-        peerConnection.close();
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-      }
+      cleanupWebRTC();
     };
-  }, [examId]);
+  }, []);
 
 
   const changeSection = (section) => {
@@ -221,17 +230,17 @@ const AgentspeakingControl = () => {
       socketRef.current.emit('end-exam', examId);
     }
     // Close video call
-    cleanupVideoCall();
+    cleanupWebRTC();
   };
 
-  const cleanupVideoCall = () => {
-    if (peerConnection) {
-      peerConnection.close();
-      setPeerConnection(null);
+  const cleanupWebRTC = () => {
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
     }
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
     }
     setRemoteStream(null);
     setIsVideoCallActive(false);
@@ -240,7 +249,8 @@ const AgentspeakingControl = () => {
 
   const retryVideoCall = async () => {
     console.log('Agent retrying video call');
-    cleanupVideoCall();
+    cleanupWebRTC();
+    offerSentRef.current = false; // Allow new offer
     setTimeout(() => {
       createOffer();
     }, 1000);
@@ -248,6 +258,8 @@ const AgentspeakingControl = () => {
 
   // WebRTC functions
   const initializePeerConnection = () => {
+    if (pcRef.current) return pcRef.current;
+
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -293,10 +305,16 @@ const AgentspeakingControl = () => {
       }
     };
 
+    pcRef.current = pc;
     return pc;
   };
 
   const startLocalVideo = async () => {
+    if (localStreamRef.current) {
+      console.log('Agent: Reusing existing local stream');
+      return localStreamRef.current;
+    }
+
     try {
       console.log('Agent: Requesting camera/microphone access');
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -304,6 +322,7 @@ const AgentspeakingControl = () => {
         audio: true
       });
       console.log('Agent: Got media stream:', stream);
+      localStreamRef.current = stream;
       setLocalStream(stream);
       setVideoCallError(null); // Clear any previous errors
       console.log('Agent: Local stream set successfully');
@@ -355,7 +374,9 @@ const AgentspeakingControl = () => {
         setPermissionError("");
         setVideoCallError(null);
         setTimeout(() => {
-          createOffer();
+          if (!offerSentRef.current) {
+            createOffer();
+          }
         }, 500);
         return;
       }
@@ -375,7 +396,9 @@ const AgentspeakingControl = () => {
       // Wait a bit longer for permissions to settle, then retry creating offer
       setTimeout(() => {
         console.log("Retrying video call after permission granted");
-        createOffer();
+        if (!offerSentRef.current) {
+          createOffer();
+        }
       }, 1000);
     } catch (error) {
       console.warn("Camera permission still denied:", error);
@@ -390,13 +413,14 @@ const AgentspeakingControl = () => {
   };
 
   const createOffer = async () => {
+    if (offerSentRef.current) return; // Prevent multiple offers
+
     try {
       console.log('Agent: Creating WebRTC offer');
       const pc = initializePeerConnection();
-      setPeerConnection(pc);
 
-      if (localStream) {
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current));
       } else {
         // Fallback: start local video if not already started
         console.log('Agent: Starting local video for offer');
@@ -415,6 +439,7 @@ const AgentspeakingControl = () => {
           room: examId,
           sdp: offer.sdp
         });
+        offerSentRef.current = true;
         console.log('Agent: Offer sent successfully');
       }
     } catch (error) {
@@ -459,7 +484,7 @@ const AgentspeakingControl = () => {
     while (iceCandidatesQueueRef.current.length > 0) {
       const candidate = iceCandidatesQueueRef.current.shift();
       try {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
         console.log('Agent: Queued ICE candidate added');
       } catch (error) {
         console.error('Agent: Error adding queued ICE candidate:', error);
@@ -470,8 +495,8 @@ const AgentspeakingControl = () => {
   const handleAnswer = async (data) => {
     try {
       console.log('Agent: Received answer from student');
-      if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: data.sdp}));
+      if (pcRef.current) {
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: data.sdp}));
         console.log('Agent: Remote description set for answer');
         await processQueuedIceCandidates();
       }
@@ -483,9 +508,9 @@ const AgentspeakingControl = () => {
   const handleIceCandidate = async (data) => {
     try {
       console.log('Agent: Received ICE candidate from student');
-      if (peerConnection && data.candidate) {
-        if (peerConnection.remoteDescription) {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      if (pcRef.current && data.candidate) {
+        if (pcRef.current.remoteDescription) {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
           console.log('Agent: ICE candidate added');
         } else {
           iceCandidatesQueueRef.current.push(data.candidate);
