@@ -16,7 +16,7 @@ const ExamInstructions = () => {
     console.log(test);
 
     try {
-      await fetch(`http://localhost:3001/exam-assignments/${test.assignmentId}`, {
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${test.assignmentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ examStarted: true })

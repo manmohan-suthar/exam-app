@@ -27,7 +27,7 @@ const WritingPapersBuilder = () => {
 
   const fetchPapers = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/admin/writing-papers');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers`);
       setPapers(response.data.papers);
     } catch (error) {
       console.error('Error fetching papers:', error);
@@ -157,9 +157,9 @@ const WritingPapersBuilder = () => {
       };
 
       if (currentPaper._id) {
-        await axios.put(`http://localhost:3001/admin/writing-papers/${currentPaper._id}`, paperData);
+        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers/${currentPaper._id}`, paperData);
       } else {
-        const response = await axios.post('http://localhost:3001/admin/writing-papers', paperData);
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers`, paperData);
         setCurrentPaper(response.data.paper);
       }
 
@@ -177,7 +177,7 @@ const WritingPapersBuilder = () => {
     if (!confirm('Are you sure you want to delete this paper?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/admin/writing-papers/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers/${id}`);
       await fetchPapers();
       if (currentPaper && currentPaper._id === id) {
         setCurrentPaper(null);
@@ -220,7 +220,7 @@ const WritingPapersBuilder = () => {
     }
 
     try {
-      await axios.put(`http://localhost:3001/admin/writing-papers/${currentPaper._id}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers/${currentPaper._id}`, {
         ...currentPaper,
         status: 'published'
       });
@@ -405,7 +405,7 @@ const WritingPapersBuilder = () => {
                         {currentTaskData.images?.map((image, imgIdx) => (
                           <div key={imgIdx} className="my-4">
                             <img
-                              src={`http://localhost:3001/${image.path}`}
+                              src={`${import.meta.env.VITE_API_BASE_URL}/${image.path}`}
                               alt={image.originalName}
                               className="max-w-full h-auto rounded-lg shadow-sm"
                             />
@@ -656,7 +656,7 @@ const WritingPapersBuilder = () => {
                               formData.append('image', blobInfo.blob());
                               formData.append('taskNumber', currentTask);
 
-                              const response = await fetch(`http://localhost:3001/admin/writing-papers/${currentPaper._id}/upload-image`, {
+                              const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers/${currentPaper._id}/upload-image`, {
                                 method: 'POST',
                                 body: formData
                               });
@@ -668,7 +668,7 @@ const WritingPapersBuilder = () => {
                               const data = await response.json();
 
                               if (data.image) {
-                                success(`http://localhost:3001/${data.image.path}`);
+                                success(`${import.meta.env.VITE_API_BASE_URL}/${data.image.path}`);
                               } else {
                                 failure('Upload failed');
                               }

@@ -57,7 +57,7 @@ export default function ListeningPlaygroundUI() {
           setLoading(false);
           return;
         }
-        const res = await fetch(`http://localhost:3001/listening/${exam.exam_paper}`);
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${exam.exam_paper}`);
         if (!cancelled) {
           if (res.ok) {
             const data = await res.json();

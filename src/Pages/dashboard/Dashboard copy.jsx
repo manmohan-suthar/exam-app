@@ -86,7 +86,7 @@ const Dashboard = () => {
     const fetchAssignments = async () => {
       console.log('Dashboard: Fetching assignments for student_id:', student.student_id);
       try {
-        const response = await fetch(`http://localhost:3001/exam-assignments?student_id=${student.student_id}`);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments?student_id=${student.student_id}`);
         console.log('Dashboard: Assignments response status:', response.status);
         if (!response.ok) {
           const errorText = await response.text();
@@ -110,7 +110,7 @@ const Dashboard = () => {
   const fetchPaper = async (paperId) => {
     console.log('Dashboard: Fetching paper for id:', paperId);
     try {
-      const response = await fetch(`http://localhost:3001/listening/${paperId}`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${paperId}`);
       console.log('Dashboard: Response status:', response.status);
       if (response.ok) {
         const paperData = await response.json();
@@ -176,7 +176,7 @@ const Dashboard = () => {
   const handleSubmitExam = async () => {
     try {
       await axios.put(
-        `http://localhost:3001/admin/exam-assignments/${examAssignment._id}/status`,
+        `${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments/${examAssignment._id}/status`,
         {
           status: "completed",
         }

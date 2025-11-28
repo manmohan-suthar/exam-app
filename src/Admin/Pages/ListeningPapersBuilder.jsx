@@ -17,7 +17,7 @@ const ListeningPapersBuilder = () => {
 
   const fetchPapers = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/admin/listening-papers');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers`);
       setPapers(response.data.papers);
     } catch (error) {
       console.error('Error fetching papers:', error);
@@ -81,9 +81,9 @@ const ListeningPapersBuilder = () => {
       };
 
       if (currentPaper?._id) {
-        await axios.put(`http://localhost:3001/admin/listening-papers/${currentPaper._id}`, paperData);
+        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper._id}`, paperData);
       } else {
-        const response = await axios.post('http://localhost:3001/admin/listening-papers', paperData);
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers`, paperData);
         setCurrentPaper(response.data.paper);
       }
 
@@ -105,7 +105,7 @@ const ListeningPapersBuilder = () => {
     if (!confirm('Are you sure you want to delete this paper?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/admin/listening-papers/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${id}`);
       await fetchPapers();
       if (currentPaper && currentPaper?._id === id) {
         setCurrentPaper(null);
@@ -311,7 +311,7 @@ const ListeningPapersBuilder = () => {
 
     try {
       const response = await axios.post(
-        `http://localhost:3001/admin/listening-papers/${currentPaper._id}/upload-audio`,
+        `${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper._id}/upload-audio`,
         formData,
         {
           headers: {
@@ -342,7 +342,7 @@ const ListeningPapersBuilder = () => {
     }
 
     try {
-      await axios.put(`http://localhost:3001/admin/listening-papers/${currentPaper?._id}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper?._id}`, {
         ...currentPaper,
         status: 'published'
       });
@@ -491,7 +491,7 @@ const ListeningPapersBuilder = () => {
                     <h4 className="font-medium text-slate-800 mb-3">Audio Player</h4>
                     <div className="space-y-3">
                       <audio controls className="w-full">
-                        <source src={currentPaper.sections[currentSection].audioFile ? `http://localhost:3001/${currentPaper.sections[currentSection].audioFile}` : currentPaper.sections[currentSection].audioUrl} type="audio/mpeg" />
+                        <source src={currentPaper.sections[currentSection].audioFile ? `${import.meta.env.VITE_API_BASE_URL}/${currentPaper.sections[currentSection].audioFile}` : currentPaper.sections[currentSection].audioUrl} type="audio/mpeg" />
                       </audio>
                       <div className="text-xs text-slate-600 text-center">
                         Start at {currentPaper.sections[currentSection].startTime}

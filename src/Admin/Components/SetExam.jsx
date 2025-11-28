@@ -38,7 +38,7 @@ const SetExam = () => {
 
   const fetchStudents = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/admin/students');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/students`);
       setStudents(res.data.students);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -47,7 +47,7 @@ const SetExam = () => {
 
   const fetchAssignments = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/admin/exam-assignments');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments`);
       setAssignments(res.data.assignments);
     } catch (error) {
       console.error('Error fetching assignments:', error);
@@ -56,7 +56,7 @@ const SetExam = () => {
 
   const fetchAgents = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/admin/agents');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/agents`);
       setAgents(res.data.agents);
     } catch (error) {
       console.error('Error fetching agents:', error);
@@ -65,7 +65,7 @@ const SetExam = () => {
 
   const updateAssignmentStatus = async (id, status) => {
     try {
-      await axios.put(`http://localhost:3001/admin/exam-assignments/${id}/status`, { status });
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments/${id}/status`, { status });
       setAssignments(assignments.map(assignment =>
         assignment._id === id ? { ...assignment, status } : assignment
       ));
@@ -77,7 +77,7 @@ const SetExam = () => {
 
   const updateAssignmentVisibility = async (id, is_visible) => {
     try {
-      await axios.put(`http://localhost:3001/admin/exam-assignments/${id}/visibility`, { is_visible });
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments/${id}/visibility`, { is_visible });
       setAssignments(assignments.map(assignment =>
         assignment._id === id ? { ...assignment, is_visible } : assignment
       ));
@@ -89,7 +89,7 @@ const SetExam = () => {
 
   const fetchExamPapers = async (examType) => {
     try {
-      const res = await axios.get(`http://localhost:3001/admin/exam-papers/${examType}`);
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-papers/${examType}`);
       setExamPapers(prev => ({
         ...prev,
         [examType]: res.data.papers
@@ -174,7 +174,7 @@ const SetExam = () => {
 
       console.log('Creating assignment with agent:', formData.agent, assignmentData);
 
-      await axios.post('http://localhost:3001/admin/exam-assignments', assignmentData);
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments`, assignmentData);
 
       alert('Exam assignment created successfully!');
       setFormData({

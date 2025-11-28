@@ -25,7 +25,7 @@ const ReadingPapersBuilder = () => {
 
   const fetchPapers = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/admin/reading-papers');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/reading-papers`);
       setPapers(response.data.papers);
     } catch (error) {
       console.error('Error fetching papers:', error);
@@ -34,7 +34,7 @@ const ReadingPapersBuilder = () => {
 
   const fetchAdmins = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/admin/agents');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/agents`);
       setAdmins(response.data.agents);
     } catch (error) {
       console.error('Error fetching admins:', error);
@@ -280,9 +280,9 @@ const ReadingPapersBuilder = () => {
       delete paperData.units;
 
       if (currentPaper._id) {
-        await axios.put(`http://localhost:3001/admin/reading-papers/${currentPaper._id}`, paperData);
+        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/reading-papers/${currentPaper._id}`, paperData);
       } else {
-        const response = await axios.post('http://localhost:3001/admin/reading-papers', paperData);
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/reading-papers`, paperData);
         setCurrentPaper(response.data.paper);
       }
 
@@ -300,7 +300,7 @@ const ReadingPapersBuilder = () => {
     if (!confirm('Are you sure you want to delete this paper?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/admin/reading-papers/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/reading-papers/${id}`);
       await fetchPapers();
       if (currentPaper && currentPaper._id === id) {
         setCurrentPaper(null);
@@ -536,7 +536,7 @@ const ReadingPapersBuilder = () => {
     }
 
     try {
-      await axios.put(`http://localhost:3001/admin/reading-papers/${currentPaper._id}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/reading-papers/${currentPaper._id}`, {
         ...currentPaper,
         status: 'published'
       });

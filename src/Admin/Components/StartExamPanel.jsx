@@ -56,8 +56,8 @@ const StartExamPanel = () => {
     setLoading(true);
     try {
       const [assignRes, regRes] = await Promise.all([
-        axios.get('http://localhost:3001/admin/exam-assignments'),
-        axios.get('http://localhost:3001/admin/registrations')
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments`),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/registrations`)
       ]);
       // Filter assignments for today (using UTC)
       const now = new Date();
@@ -107,13 +107,13 @@ const StartExamPanel = () => {
         return;
       }
 
-      await axios.post('http://localhost:3001/admin/login-sessions', {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/login-sessions`, {
         student: selectedStudent,
         pc: registration._id,
         assignment: assignment._id
       });
 
-      const response = await axios.post('http://localhost:3001/admin/start-exam', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/start-exam`, {
         studentId: selectedStudent,
         macAddress: selectedPC
       });
@@ -176,13 +176,13 @@ const StartExamPanel = () => {
       }
 
       // Update assignment with PC assignment and auto-login time
-      await axios.put(`http://localhost:3001/admin/exam-assignments/${assignment._id}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments/${assignment._id}`, {
         pc: registration._id,
         auto_login_time: selectedTime
       });
 
       // Create login session
-      await axios.post('http://localhost:3001/admin/login-sessions', {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/login-sessions`, {
         student: selectedStudent,
         pc: registration._id,
         assignment: assignment._id,

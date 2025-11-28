@@ -89,7 +89,7 @@ const StudentsManagement = ({ students, setStudents }) => {
         // Upload photo first
         const formDataUpload = new FormData();
         formDataUpload.append('photo', photoFile);
-        const uploadRes = await axios.post('http://localhost:3001/admin/upload-photo', formDataUpload);
+        const uploadRes = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/upload-photo`, formDataUpload);
         photoUrl = uploadRes.data.photoUrl;
       }
 
@@ -103,11 +103,11 @@ const StudentsManagement = ({ students, setStudents }) => {
 
       if (editingStudent) {
         // Update student
-        await axios.put(`http://localhost:3001/admin/students/${editingStudent._id}`, studentData);
+        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/students/${editingStudent._id}`, studentData);
         setStudents(students.map(s => s._id === editingStudent._id ? { ...s, ...studentData } : s));
       } else {
         // Create student
-        const res = await axios.post('http://localhost:3001/admin/students', studentData);
+        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/students`, studentData);
         setStudents([...students, res.data.student]);
       }
 
@@ -141,7 +141,7 @@ const StudentsManagement = ({ students, setStudents }) => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        await axios.delete(`http://localhost:3001/admin/students/${id}`);
+        await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/students/${id}`);
         setStudents(students.filter(s => s._id !== id));
       } catch (error) {
         console.error('Error deleting student:', error);

@@ -19,7 +19,7 @@ const AgentsManagement = () => {
 
   const fetchAgents = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/admin/agents');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/agents`);
       setAgents(response.data.agents);
     } catch (error) {
       console.error('Error fetching agents:', error);
@@ -39,7 +39,7 @@ const AgentsManagement = () => {
     try {
       if (editingAgent) {
         // Update agent
-        await axios.put(`http://localhost:3001/admin/agents/${editingAgent._id}`, {
+        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/agents/${editingAgent._id}`, {
           name: formData.name,
           agent_id: formData.agent_id,
           status: formData.status
@@ -47,7 +47,7 @@ const AgentsManagement = () => {
         alert('Agent updated successfully!');
       } else {
         // Create new agent
-        await axios.post('http://localhost:3001/admin/agents', formData);
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/agents`, formData);
         alert('Agent created successfully!');
       }
 
@@ -78,7 +78,7 @@ const AgentsManagement = () => {
     if (!confirm('Are you sure you want to delete this agent?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/admin/agents/${agentId}`);
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/agents/${agentId}`);
       alert('Agent deleted successfully!');
       fetchAgents();
     } catch (error) {
@@ -90,7 +90,7 @@ const AgentsManagement = () => {
   const toggleAgentStatus = async (agentId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await axios.put(`http://localhost:3001/admin/agents/${agentId}`, { status: newStatus });
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/agents/${agentId}`, { status: newStatus });
       alert(`Agent ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
       fetchAgents();
     } catch (error) {

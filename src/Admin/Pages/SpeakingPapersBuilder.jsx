@@ -29,7 +29,7 @@ const SpeakingPapersBuilder = () => {
 
   const fetchPapers = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/admin/speaking-papers');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/speaking-papers`);
       setPapers(response.data.papers);
     } catch (error) {
       console.error('Error fetching papers:', error);
@@ -165,9 +165,9 @@ const SpeakingPapersBuilder = () => {
       delete paperData.questions;
 
       if (currentPaper._id) {
-        await axios.put(`http://localhost:3001/admin/speaking-papers/${currentPaper._id}`, paperData);
+        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/speaking-papers/${currentPaper._id}`, paperData);
       } else {
-        const response = await axios.post('http://localhost:3001/admin/speaking-papers', paperData);
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/speaking-papers`, paperData);
         setCurrentPaper(response.data.paper);
       }
 
@@ -185,7 +185,7 @@ const SpeakingPapersBuilder = () => {
     if (!confirm('Are you sure you want to delete this paper?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/admin/speaking-papers/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/speaking-papers/${id}`);
       await fetchPapers();
       if (currentPaper && currentPaper._id === id) {
         setCurrentPaper(null);
@@ -306,7 +306,7 @@ const SpeakingPapersBuilder = () => {
     }
 
     try {
-      await axios.put(`http://localhost:3001/admin/speaking-papers/${currentPaper._id}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/speaking-papers/${currentPaper._id}`, {
         ...currentPaper,
         status: 'published'
       });
@@ -519,7 +519,7 @@ const SpeakingPapersBuilder = () => {
                           {currentUnitData.passages[currentPassage].images?.map((image, imgIdx) => (
                             <div key={imgIdx} className="my-4">
                               <img
-                                src={`http://localhost:3001/${image.path}`}
+                                src={`${import.meta.env.VITE_API_BASE_URL}/${image.path}`}
                                 alt={image.originalName}
                                 className="max-w-full h-auto rounded-lg shadow-sm"
                               />
@@ -862,7 +862,7 @@ const SpeakingPapersBuilder = () => {
                               formData.append('unitNumber', currentUnit);
                               formData.append('passageIndex', currentPassage);
 
-                              const response = await fetch(`http://localhost:3001/admin/speaking-papers/${currentPaper._id}/upload-image`, {
+                              const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/speaking-papers/${currentPaper._id}/upload-image`, {
                                 method: 'POST',
                                 body: formData
                               });
@@ -874,7 +874,7 @@ const SpeakingPapersBuilder = () => {
                               const data = await response.json();
 
                               if (data.image) {
-                                success(`http://localhost:3001/${data.image.path}`);
+                                success(`${import.meta.env.VITE_API_BASE_URL}/${data.image.path}`);
                               } else {
                                 failure('Upload failed');
                               }
