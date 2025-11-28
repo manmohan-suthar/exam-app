@@ -4,15 +4,20 @@
   "description": "Online Exam Application",
   "main": "electron/main.js",
   "license": "ISC",
-  "scripts": {
-    "dev": "concurrently \"npm:dev:vite\" \"npm:dev:electron\" \"npm:dev:api\"",
-    "dev:vite": "vite",
-    "dev:electron": "electron .",
-    "dev:api": "cd api && npm start",
-    "build": "vite build",
-    "build:electron": "npm run build && electron-builder",
-    "start": "electron ."
-  },
+"scripts": {
+  "dev": "concurrently \"npm:dev:vite\" \"npm:dev:electron\"",
+  "dev:vite": "vite",
+  "dev:electron": "electron .",
+
+  "dev:api": "cd api && npm start",
+  "api": "cd api && npm start",
+
+  "build": "vite build",
+  "build:electron": "npm run build && electron-builder",
+  "start": "electron ."
+}
+
+,
   "build": {
     "appId": "com.onlineexam.app",
     "productName": "Online Exam",
