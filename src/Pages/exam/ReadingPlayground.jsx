@@ -97,9 +97,6 @@ export default function ReadingPlayground() {
         pc.addTrack(track, stream);
       });
 
-      // Join room as student
-      socket.emit('join', { room: test._id, role: 'student' });
-
     } catch (err) {
       console.error('Error starting video call:', err);
       setError('Failed to access camera/microphone');
@@ -107,9 +104,24 @@ export default function ReadingPlayground() {
   };
 
   const handleOffer = async (data) => {
-    if (!peerConnection) return;
-
     try {
+      if (!localStream) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+        setLocalStream(stream);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+      }
+
+      if (!peerConnection) {
+        const pc = createPeerConnection();
+        setPeerConnection(pc);
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      }
+
       await peerConnection.setRemoteDescription(new RTCSessionDescription({
         type: 'offer',
         sdp: data.sdp
@@ -152,43 +164,43 @@ export default function ReadingPlayground() {
   };
 
   // Socket connection and WebRTC setup
-  useEffect(() => {
-    const newSocket = io(import.meta.env.VITE_API_BASE_URL);
-    setSocket(newSocket);
+   useEffect(() => {
+     const newSocket = io(import.meta.env.VITE_API_BASE_URL);
+     setSocket(newSocket);
 
-    newSocket.on('connect', () => {
-      console.log('Student connected to Socket.IO');
-      startVideoCall();
-    });
+     newSocket.on('connect', () => {
+       console.log('Student connected to Socket.IO');
+       newSocket.emit('join', { room: test._id, role: 'student' });
+     });
 
-    newSocket.on('offer', handleOffer);
-    newSocket.on('answer', handleAnswer);
-    newSocket.on('ice', handleIceCandidate);
+     newSocket.on('offer', handleOffer);
+     newSocket.on('answer', handleAnswer);
+     newSocket.on('ice', handleIceCandidate);
 
-    newSocket.on('peer-joined', (data) => {
-      console.log('Peer joined:', data);
-      // If agent joined and we haven't created offer yet, create offer
-      if (data.role === 'agent' && peerConnection && !peerConnection.localDescription) {
-        createOffer();
-      }
-    });
+     newSocket.on('change-section', (data) => {
+       setCurrentPart(data.section);
+     });
 
-    newSocket.on('disconnect', () => {
-      console.log('Student disconnected from Socket.IO');
-    });
+     newSocket.on('peer-joined', (data) => {
+       console.log('Peer joined:', data);
+     });
 
-    return () => {
-      if (newSocket) {
-        newSocket.disconnect();
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-      }
-      if (peerConnection) {
-        peerConnection.close();
-      }
-    };
-  }, [test]);
+     newSocket.on('disconnect', () => {
+       console.log('Student disconnected from Socket.IO');
+     });
+
+     return () => {
+       if (newSocket) {
+         newSocket.disconnect();
+       }
+       if (localStream) {
+         localStream.getTracks().forEach(track => track.stop());
+       }
+       if (peerConnection) {
+         peerConnection.close();
+       }
+     };
+   }, [test]);
 
   const createOffer = async () => {
     if (!peerConnection) return;
