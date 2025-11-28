@@ -76,12 +76,12 @@ const Dashboard = () => {
         localStorage.removeItem("examEnded");
       }
 
-      // Fetch paper if listening, speaking, reading or writting exam
+      // Fetch paper if listening, speaking, reading or writing exam
       if (exam.exam_paper && (exam.exam_type === 'listening' || exam.exam_type === 'speaking' || exam.exam_type === 'reading' || (Array.isArray(exam.exam_type) && exam.exam_type.includes('reading')))) {
         fetchPaper(exam.exam_paper, 'reading');
       }
-      if (exam.exam_paper && (exam.exam_type === 'writting' || (Array.isArray(exam.exam_type) && exam.exam_type.includes('writting')))) {
-        fetchPaper(exam.exam_paper, 'writting');
+      if (exam.exam_paper && (exam.exam_type === 'writing' || (Array.isArray(exam.exam_type) && exam.exam_type.includes('writing')))) {
+        fetchPaper(exam.exam_paper, 'writing');
       }
     }
 
@@ -116,7 +116,7 @@ const Dashboard = () => {
   const fetchPaper = async (paperId, examType) => {
     console.log('Dashboard: Fetching paper for id:', paperId, 'type:', examType);
     try {
-      const endpoint = examType === 'listening' ? 'listening' : examType === 'speaking' ? 'speaking' : examType === 'reading' ? 'reading' : 'writting';
+      const endpoint = examType === 'listening' ? 'listening' : examType === 'speaking' ? 'speaking' : examType === 'reading' ? 'reading' : 'writing';
       const actualPaperId = typeof paperId === 'object' ? paperId[`${examType}_exam_paper`] : paperId;
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/${endpoint}/${actualPaperId}`);
       console.log('Dashboard: Response status:', response.status);
@@ -227,7 +227,7 @@ const Dashboard = () => {
     }
   };
 
-  const skills = [ "Listening","Reading", "Writting", "Speaking",];
+  const skills = [ "Listening","Reading", "Writing", "Speaking",];
 
   const filteredTests =
     activeSkill === "all"

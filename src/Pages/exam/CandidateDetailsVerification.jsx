@@ -112,9 +112,11 @@ const CandidateDetailsVerification = () => {
   const filteredTests = activeSkill === "all" ? testsData : testsData.filter(test => test.skill === activeSkill);
 
   const test = filteredTests.find(t => t.skill === skill);
+  console.log('CandidateDetailsVerification: skill:', skill, 'test:', test);
 
   // Get current exam validation (computed on demand)
   const getExamValidation = () => {
+    console.log('CandidateDetailsVerification: getExamValidation called, test:', test);
     if (!test) return null;
     if (assignments.length === 0) {
       return { valid: false, message: "Loading exam information..." };
@@ -124,6 +126,7 @@ const CandidateDetailsVerification = () => {
 
   // Validate exam timing and availability
   const validateExam = (examTest) => {
+    console.log('CandidateDetailsVerification: validateExam called, examTest:', examTest);
     if (!examTest) return { valid: false, message: "Exam not found" };
 
     const now = new Date();
@@ -133,17 +136,21 @@ const CandidateDetailsVerification = () => {
 
     const timeDiff = now - examDate;
     const hoursDiff = timeDiff / (1000 * 60 * 60);
+    console.log('CandidateDetailsVerification: now:', now, 'examDate:', examDate, 'timeDiff:', timeDiff, 'hoursDiff:', hoursDiff);
 
     if (hoursDiff < -24) {
+      console.log('CandidateDetailsVerification: Exam not yet available');
       return { valid: false, message: "Exam is not yet available. Please check back closer to the exam time." };
     }
 
     if (hoursDiff > 24) {
+      console.log('CandidateDetailsVerification: Exam expired');
       return { valid: false, message: "Exam has expired. Please contact your instructor." };
     }
 
     // Note: Removed visibility check to allow showing assigned exams
     const assignment = assignments.find(a => a._id === examTest.assignmentId);
+    console.log('CandidateDetailsVerification: validation result: valid, assignment:', assignment);
 
     return { valid: true, assignment };
   };
@@ -333,26 +340,34 @@ const CandidateDetailsVerification = () => {
 
   // Handle next button click
   const handleNext = async () => {
+    console.log('CandidateDetailsVerification: handleNext called, test:', test, 'test.skill:', test?.skill);
     if (!test) {
+      console.log('CandidateDetailsVerification: No test found');
       setError("No exam found for the selected skill. Please try again.");
       return;
     }
 
     // Validate exam
     const validation = getExamValidation();
+    console.log('CandidateDetailsVerification: validation:', validation);
     if (!validation || !validation.valid) {
+      console.log('CandidateDetailsVerification: validation failed:', validation?.message);
       setError(validation?.message || "Exam validation failed. Please try again.");
       return;
     }
 
     // For speaking, listening, and writing exams, start directly
     if (test.skill === 'speaking') {
+      console.log('CandidateDetailsVerification: Starting speaking exam');
       await startspeakingExam(test, validation.assignment);
     } else if (test.skill === 'listening') {
+      console.log('CandidateDetailsVerification: Starting listening exam');
       await startListeningExam(test, validation.assignment);
-    } else if (test.skill === 'writting') {
+    } else if (test.skill === 'writing') {
+      console.log('CandidateDetailsVerification: Starting writing exam');
       await startWritingExam(test, validation.assignment);
     } else {
+      console.log('CandidateDetailsVerification: Navigating to instructions for skill:', test.skill);
       // For other exams, go to instructions
       navigate("/exam/instructions", { state: { test } });
     }
@@ -404,6 +419,8 @@ const CandidateDetailsVerification = () => {
       </div>
     );
   }
+
+  console.log('CandidateDetailsVerification: Render - startingExam:', startingExam, 'test:', !!test, 'validation:', getExamValidation());
 
   return (
     <div className="grid grid-cols-6 min-h-screen">
@@ -480,8 +497,8 @@ const CandidateDetailsVerification = () => {
                 'Start Speaking Exam'
               ) : test?.skill === 'listening' ? (
                 'Start Listening Exam'
-              ) : test?.skill === 'writting' ? (
-                'Start Writting Exam'
+              ) : test?.skill === 'writing' ? (
+                'Start Writing Exam'
               ) : (
                 'Next'
               )}
