@@ -76,13 +76,7 @@ const Dashboard = () => {
         localStorage.removeItem("examEnded");
       }
 
-      // Fetch paper if listening, speaking, reading or writing exam
-      if (exam.exam_paper && (exam.exam_type === 'listening' || exam.exam_type === 'speaking' || exam.exam_type === 'reading' || (Array.isArray(exam.exam_type) && exam.exam_type.includes('reading')))) {
-        fetchPaper(exam.exam_paper, 'reading');
-      }
-      if (exam.exam_paper && (exam.exam_type === 'writing' || (Array.isArray(exam.exam_type) && exam.exam_type.includes('writing')))) {
-        fetchPaper(exam.exam_paper, 'writing');
-      }
+      // Paper fetching is handled in the exam pages, not in dashboard
     }
 
 

@@ -6,6 +6,7 @@ const WritingPlayground = () => {
   const [loading, setLoading] = useState(true);
   const [currentTask, setCurrentTask] = useState(1);
   const [answers, setAnswers] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +37,49 @@ const WritingPlayground = () => {
 
   const handleAnswerChange = (taskNumber, answer) => {
     setAnswers(prev => ({ ...prev, [taskNumber]: answer }));
+  };
+
+  const submitExam = async () => {
+    if (!paper || !test) return;
+
+    setSubmitting(true);
+    try {
+      const examData = localStorage.getItem("examAssignment");
+      if (!examData) {
+        alert("Exam data not found");
+        return;
+      }
+      const exam = JSON.parse(examData);
+
+      const paperId = exam.exam_paper.writing_exam_paper || exam.exam_paper.writing || exam.exam_paper;
+      const payload = {
+        studentId: exam.student._id || exam.student,
+        assignmentId: exam._id,
+        answers: answers
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/writing-results/${paperId}/submit-results`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Exam submitted successfully! Your answers have been saved for grading.`);
+        navigate('/dashboard');
+      } else {
+        const error = await response.json();
+        alert(`Submission failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('An error occurred while submitting the exam');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -166,17 +210,21 @@ const WritingPlayground = () => {
                   </div>
 
                   {/* Submit Section */}
-                  {/* <div className="bg-white border border-gray-200 p-4 rounded">
+                  <div className="bg-white border border-gray-200 p-4 rounded">
                     <div className="text-center">
                       <h3 className="text-lg font-semibold text-gray-800 mb-2">Ready to Submit?</h3>
                       <p className="text-gray-600 text-sm mb-6">
                         Make sure you have completed all writing tasks before submitting.
                       </p>
-                      <button className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
-                        Submit Writing Test
+                      <button
+                        onClick={submitExam}
+                        disabled={submitting}
+                        className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors"
+                      >
+                        {submitting ? 'Submitting...' : 'Submit Writing Test'}
                       </button>
                     </div>
-                  </div> */}
+                  </div>
                 </div>
               </div>
             );

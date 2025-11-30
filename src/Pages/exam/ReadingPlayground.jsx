@@ -7,6 +7,7 @@ export default function ReadingPlayground() {
   const [loading, setLoading] = useState(true);
   const [currentPart, setCurrentPart] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const [socket, setSocket] = useState(null);
 
@@ -82,6 +83,49 @@ export default function ReadingPlayground() {
 
 
   const currentQuestions = paper?.questions?.filter(q => q.unitNumber === currentPart + 1) || [];
+
+  const submitExam = async () => {
+    if (!paper || !test) return;
+
+    setSubmitting(true);
+    try {
+      const examData = localStorage.getItem("examAssignment");
+      if (!examData) {
+        alert("Exam data not found");
+        return;
+      }
+      const exam = JSON.parse(examData);
+
+      const paperId = exam.exam_paper.reading_exam_paper || exam.exam_paper.reading || exam.exam_paper;
+      const payload = {
+        studentId: exam.student._id || exam.student,
+        assignmentId: exam._id,
+        answers: answers
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/reading-results/${paperId}/submit-results`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Exam submitted successfully! Score: ${result.result.score}`);
+        navigate('/dashboard');
+      } else {
+        const error = await response.json();
+        alert(`Submission failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('An error occurred while submitting the exam');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const renderQuestion = (q) => {
     switch (q.type) {
@@ -221,7 +265,7 @@ export default function ReadingPlayground() {
                 key={sent.letter}
                 draggable={!isUsed}
                 onDragStart={(e) => e.dataTransfer.setData('text', sent.letter)}
-                className={`p-2 border cursor-move ${
+                className={`p-2 border cursor-move last:mb-0 ${
                   isUsed
                     ? "border-gray-300 bg-gray-200 text-gray-500"
                     : "border-[#ff3200] bg-[#f8b592] hover:bg-[#FFDFCA]"
@@ -250,7 +294,7 @@ export default function ReadingPlayground() {
                 key={text.letter}
                 draggable={!isUsed}
                 onDragStart={(e) => e.dataTransfer.setData('text', text.letter)}
-                className={`p-4 rounded-lg  border cursor-move ${
+                className={`p-4 rounded-lg border cursor-move last:mb-0 ${
                   isUsed
                     ? "bg-gray-200 border-gray-300 text-gray-500"
                     : "bg-orange-100 border-orange-300 hover:bg-orange-200"
@@ -270,7 +314,7 @@ export default function ReadingPlayground() {
           {q.matchingQuestions?.map((mq) => (
             <div
               key={mq.questionNumber}
-              className="p-3 border border-gray-300 rounded-lg bg-gray-50 "
+              className="p-3 border border-gray-300 rounded-lg bg-gray-50 last:mb-0"
             >
               <p className="text-gray-700 text-[13px]  mb-2 leading-relaxed">
                 {mq.questionNumber}. {mq.question}
@@ -544,10 +588,10 @@ export default function ReadingPlayground() {
 
   return processedContent ? (
     <div className="flex-1 bg-white border border-gray-200 p-4 rounded max-h-96 overflow-y-auto">
-      <p
-        className="text-gray-800 leading-relaxed"
+      <div
+        className="text-gray-800 leading-relaxed [&>*]:my-0 [&>p]:my-0"
         dangerouslySetInnerHTML={{ __html: processedContent }}
-      ></p>
+      ></div>
     </div>
   ) : null;
 })()}
@@ -556,17 +600,14 @@ export default function ReadingPlayground() {
               {/* questions area */}
               <div className="flex-1 space-y-6 max-h-96 overflow-y-auto">
                 {currentQuestions.map((q) => (
-                  <>
-                  {console.log('Rendering question:', q)}
-                  <article key={q._id} className="bg-white">
+                  <article key={q._id} className="bg-white last:mb-0">
                     <div className="p-1 pl-5 flex items-center bg-[#F7F7F7] border">
                       <div className="text-2xl font-semibold">{q.order + 1}.</div>
-                      <div className="ml-6 flex items-center">{q.type !== 'type3_sentence_completion' && q.question && <p className="text-gray-800 font-medium" dangerouslySetInnerHTML={{ __html: q.question.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></p>}</div>
+                      <div className="ml-6 flex items-center">{q.type !== 'type3_sentence_completion' && q.question && <div className="text-gray-800 font-medium m-0" dangerouslySetInnerHTML={{ __html: q.question.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></div>}</div>
                     </div>
 
                     {renderQuestion(q)}
                   </article>
-                  </>
                 ))}
               </div>
             </div>
@@ -576,21 +617,29 @@ export default function ReadingPlayground() {
                 <div className="p-8 bg-white border rounded text-gray-500">No questions available for this section</div>
               ) : (
                 currentQuestions.map((q) => (
-                  <>
-                  {console.log('Rendering question:', q)}
-                  <article key={q._id} className="bg-white">
+                  <article key={q._id} className="bg-white last:mb-0">
                     <div className="p-1 pl-5 flex items-center bg-[#F7F7F7] border">
                       <div className="text-2xl font-semibold">{q.order + 1}.</div>
-                      <div className="ml-6 flex items-center">{q.type !== 'type3_sentence_completion' && q.question && <p className="text-gray-800 font-medium" dangerouslySetInnerHTML={{ __html: q.question.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></p>}</div>
+                      <div className="ml-6 flex items-center">{q.type !== 'type3_sentence_completion' && q.question && <div className="text-gray-800 font-medium m-0" dangerouslySetInnerHTML={{ __html: q.question.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></div>}</div>
                     </div>
 
                     {renderQuestion(q)}
                   </article>
-                  </>
                 ))
               )}
             </div>
           )}
+
+          {/* Submit button */}
+          <div className="mt-8 text-center">
+            <button
+              onClick={submitExam}
+              disabled={submitting}
+              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+            >
+              {submitting ? 'Submitting...' : 'Submit Exam'}
+            </button>
+          </div>
         </main>
       </div>
     </div>

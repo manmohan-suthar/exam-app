@@ -31,6 +31,7 @@ const ListeningPapersBuilder = () => {
       sections: [
         {
           sectionNumber: 1,
+          introduction: '',
           audioFile: '',
           audioUrl: '',
           startTime: '00:00',
@@ -51,6 +52,7 @@ const ListeningPapersBuilder = () => {
       paperWithSections.sections = [
         {
           sectionNumber: 1,
+          introduction: '',
           audioFile: paperWithSections.audioFile || '',
           audioUrl: '',
           startTime: '00:00',
@@ -59,6 +61,12 @@ const ListeningPapersBuilder = () => {
       ];
       delete paperWithSections.questions; // Remove old structure
       delete paperWithSections.audioFile; // Remove old structure
+    } else {
+      // Ensure all sections have introduction field for backward compatibility
+      paperWithSections.sections = paperWithSections.sections.map(section => ({
+        ...section,
+        introduction: section.introduction || ''
+      }));
     }
     setCurrentPaper(paperWithSections);
     setCurrentSection(0);
@@ -256,6 +264,7 @@ const ListeningPapersBuilder = () => {
 
     const newSection = {
       sectionNumber: currentPaper.sections.length + 1,
+      introduction: '',
       audioFile: '',
       audioUrl: '',
       startTime: '00:00',
@@ -540,6 +549,13 @@ const ListeningPapersBuilder = () => {
                           </p>
                         </div>
                       </div>
+
+                      {currentSectionData.introduction && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                          <h5 className="text-sm font-medium text-slate-700 mb-2">Introduction</h5>
+                          <p className="text-slate-700 text-sm leading-relaxed">{currentSectionData.introduction}</p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Questions */}
@@ -760,6 +776,16 @@ const ListeningPapersBuilder = () => {
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
                     <h4 className="text-sm font-medium text-slate-700 mb-3">Audio Configuration</h4>
                     <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm text-slate-600 mb-1">Introduction</label>
+                        <textarea
+                          value={currentSectionData.introduction || ''}
+                          onChange={(e) => updateSection(currentSection, { introduction: e.target.value })}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Enter section introduction text"
+                        />
+                      </div>
                       <div>
                         <label className="block text-sm text-slate-600 mb-1">Audio File</label>
                         {!currentPaper._id ? (

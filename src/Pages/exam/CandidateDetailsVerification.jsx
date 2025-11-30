@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../../photos/Cerebral_Logo.png"
 
@@ -192,7 +193,7 @@ const CandidateDetailsVerification = () => {
       localStorage.setItem("examAssignment", JSON.stringify({
         ...assignment,
         exam_type: examTest.skill,
-        exam_paper: examTest.exam_paper,
+        exam_paper: assignment.exam_paper,
         examStarted: true,
         startedAt: new Date().toISOString()
       }));
@@ -253,7 +254,7 @@ const CandidateDetailsVerification = () => {
       localStorage.setItem("examAssignment", JSON.stringify({
         ...assignment,
         exam_type: examTest.skill,
-        exam_paper: examTest.exam_paper,
+        exam_paper: assignment.exam_paper,
         examStarted: true,
         startedAt: new Date().toISOString()
       }));
@@ -314,7 +315,7 @@ const CandidateDetailsVerification = () => {
       localStorage.setItem("examAssignment", JSON.stringify({
         ...assignment,
         exam_type: examTest.skill,
-        exam_paper: examTest.exam_paper,
+        exam_paper: assignment.exam_paper,
         examStarted: true,
         startedAt: new Date().toISOString()
       }));
@@ -415,6 +416,9 @@ const CandidateDetailsVerification = () => {
         <div className="text-center">
           <div className="animate-spin h-12 w-12 border-b-2 border-orange-500 rounded-full mx-auto"></div>
           <p className="text-gray-600 mt-3">Loading assignments...</p>
+         <button onClick={() => navigate(-1)} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          back
+         </button>
         </div>
       </div>
     );
@@ -423,100 +427,106 @@ const CandidateDetailsVerification = () => {
   console.log('CandidateDetailsVerification: Render - startingExam:', startingExam, 'test:', !!test, 'validation:', getExamValidation());
 
   return (
-    <div className="grid grid-cols-6 min-h-screen">
+<div className="h-screen bg-[#F3F3F3] text-gray-900 p-5 flex flex-col">
 
+{/* Page Title */}
+<h1 className="text-3xl font-semibold mb-6">Candidate Details Verification</h1>
 
-      {/* Main Content */}
-      <div className="col-span-6 bg-[#F3F3F3] text-gray-900 p-5">
-        {/* Page Title */}
-        <h1 className="text-3xl font-semibold mb-6">Candidate Details Verification</h1>
+{/* Main White Box (Scroll Inside) */}
+<div className="bg-white p-8 border border-gray-300 flex-1 overflow-y-auto rounded-md">
 
-        <div className="bg-white p-8 border border-gray-300 mx-auto">
+  {/* Instructions */}
+  <p className="text-[17px] leading-6 text-gray-700">
+    Please confirm your personal details shown below.
+    <br />
+    In the case of error, please inform your invigilator.
+  </p>
 
-          {/* Instructions */}
-          <p className="text-[17px] leading-6 text-gray-700">
-            Please confirm your personal details shown below.
+  {/* PERSONAL INFORMATION */}
+  <h2 className="text-xl font-bold mt-8 mb-3">Personal Information</h2>
 
-            In the case of error, please inform your invigilator.
-          </p>
-
-          {/* PERSONAL INFORMATION */}
-          <h2 className="text-xl font-bold mt-8 mb-3">Personal Information</h2>
-
-          <div className="space-y-5 text-[17px]">
-            <div>
-              <p className="text-gray-600 text-sm">First / Middle Name(s) (Latin)</p>
-              <p className="font-medium">{student.name || "N/A"}</p>
-            </div>
-
-            <div>
-              <p className="text-gray-600 text-sm">Last Name (Latin)</p>
-              <p className="font-medium">{student.last_name || "N/A"}</p>
-            </div>
-
-            <div>
-              <p className="text-gray-600 text-sm">Birth Date (DD/MM/YYYY)</p>
-              <p className="font-medium">
-                {student.dob ? new Date(student.dob).toLocaleDateString() : "N/A"}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-gray-600 text-sm">Module Name</p>
-              <p className="font-medium">{test ? test.name : "Academic (Listening speaking Writing)"}</p>
-            </div>
-
-            <div>
-              <p className="text-gray-600 text-sm">URN</p>
-              <p className="font-medium">
-                {student.unr || registration?.urn || "LCA/010123/1234501234567891234567"}
-              </p>
-            </div>
-          </div>
-
-          {/* BUTTONS */}
-          <div className="mt-10 flex justify-between">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="bg-gray-500 text-white px-8 py-2 text-lg rounded-sm hover:bg-gray-600"
-              disabled={startingExam}
-            >
-              Back
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={startingExam || !test || (getExamValidation() && !getExamValidation().valid)}
-              className="bg-[#FF3A00] text-white px-12 py-2 text-lg rounded-sm hover:bg-[#e03500] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {startingExam ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full"></div>
-                  Starting Exam...
-                </div>
-              ) : test?.skill === 'speaking' ? (
-                'Start Speaking Exam'
-              ) : test?.skill === 'listening' ? (
-                'Start Listening Exam'
-              ) : test?.skill === 'writing' ? (
-                'Start Writing Exam'
-              ) : (
-                'Next'
-              )}
-            </button>
-          </div>
-
-          {/* Exam validation message */}
-          {(() => {
-            const validation = getExamValidation();
-            return validation ? (
-              <div className={`mt-4 p-3 rounded ${validation.valid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {validation.message}
-              </div>
-            ) : null;
-          })()}
-        </div>
-      </div>
+  <div className="grid grid-cols-2 gap-6 text-[17px]">
+    <div>
+      <p className="text-gray-600 text-sm">First / Middle Name(s) (Latin)</p>
+      <p className="font-medium">{student.name || "N/A"}</p>
     </div>
+
+    <div>
+      <p className="text-gray-600 text-sm">Last Name (Latin)</p>
+      <p className="font-medium">{student.last_name || "N/A"}</p>
+    </div>
+
+    <div>
+      <p className="text-gray-600 text-sm">Birth Date (DD/MM/YYYY)</p>
+      <p className="font-medium">
+        {student.dob ? new Date(student.dob).toLocaleDateString() : "N/A"}
+      </p>
+    </div>
+
+    <div>
+      <p className="text-gray-600 text-sm">Module Name</p>
+      <p className="font-medium">
+        {test ? test.name : "Academic (Listening speaking Writing)"}
+      </p>
+    </div>
+
+    <div className="col-span-2">
+      <p className="text-gray-600 text-sm">URN</p>
+      <p className="font-medium">
+        {student.unr || registration?.urn || "LCA/010123/1234501234567891234567"}
+      </p>
+    </div>
+  </div>
+
+  {/* BUTTONS */}
+  <div className="mt-10 flex justify-between">
+
+    <button
+      onClick={() => navigate("/dashboard")}
+      className="bg-gray-500 text-white px-8 py-2 text-lg rounded hover:bg-gray-600"
+      disabled={startingExam}
+    >
+      Back
+    </button>
+
+    <button
+      onClick={handleNext}
+      disabled={startingExam || !test || (getExamValidation()?.valid === false)}
+      className="bg-[#FF3A00] text-white px-12 py-2 text-lg rounded hover:bg-[#e03500] disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {startingExam ? (
+        <div className="flex items-center gap-2">
+          <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full"></div>
+          Starting Exam...
+        </div>
+      ) : test?.skill === 'speaking' ? (
+        'Start Speaking Exam'
+      ) : test?.skill === 'listening' ? (
+        'Start Listening Exam'
+      ) : test?.skill === 'writing' ? (
+        'Start Writing Exam'
+      ) : (
+        'Next'
+      )}
+    </button>
+  </div>
+
+  {/* Exam Validation Message */}
+  {(() => {
+    const validation = getExamValidation();
+    return validation ? (
+      <div
+        className={`mt-4 p-3 rounded ${
+          validation.valid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}
+      >
+        {validation.message}
+      </div>
+    ) : null;
+  })()}
+</div>
+</div>
+
   );
 };
 

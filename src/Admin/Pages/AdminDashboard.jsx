@@ -11,6 +11,7 @@ import StartExamPanel from '../Components/StartExamPanel';
 import ListeningPapersBuilder from './ListeningPapersBuilder';
 import SpeakingPapersBuilder from './SpeakingPapersBuilder';
 import WritingPapersBuilder from './WritingPapersBuilder';
+import ResultsPage from './ResultsPage';
 import { LayoutDashboard, Users, Notebook,Monitor, Settings, FileAudio, BookOpen, PenTool, Calendar, Play, UserCheck, Shield } from 'lucide-react';
 import ReadingPapersBuilder from './ReadingPapersBuilder';
 import { useNavigate } from 'react-router-dom';
@@ -158,6 +159,10 @@ const AdminDashboard = () => {
 
           {activeTab === 'set-exam' && (
             <SetExam />
+          )}
+
+          {activeTab === 'results' && (
+            <ResultsPage />
           )}
 
           {activeTab === 'settings' && (

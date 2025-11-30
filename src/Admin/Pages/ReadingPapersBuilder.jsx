@@ -326,6 +326,7 @@ const ReadingPapersBuilder = () => {
     });
   };
 
+
   // Question management functions
   const addQuestionToUnit = (questionType) => {
     if (!currentPaper || !currentPaper.units) return;
@@ -1020,11 +1021,11 @@ const ReadingPapersBuilder = () => {
                   </div>
 
                   <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                    <textarea
+                    <input
+                      type="text"
                       value={currentUnitData.instructions || ''}
                       onChange={(e) => updateUnit(currentUnit, { instructions: e.target.value })}
-                      className="w-full bg-transparent border-none outline-none resize-none text-slate-700 font-medium"
-                      rows={2}
+                      className="w-full bg-transparent border-none outline-none text-slate-700 font-medium"
                       placeholder="Section instructions"
                     />
                   </div>

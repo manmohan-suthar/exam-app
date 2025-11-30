@@ -10,24 +10,16 @@ const Type4MatchingHeadings = ({ question, onUpdate, onDelete, index }) => {
     matchingQuestions: question.matchingQuestions || []
   });
 
-  // Update matching questions when texts change
+  // Update question numbers when questions change
   useEffect(() => {
-    const numTexts = editData.texts.length;
-    const currentQuestions = editData.matchingQuestions.length;
-
-    if (numTexts !== currentQuestions) {
-      const newQuestions = [];
-      for (let i = 1; i <= numTexts; i++) {
-        const existing = editData.matchingQuestions.find(q => q.questionNumber === i);
-        newQuestions.push({
-          questionNumber: i,
-          question: existing ? existing.question : '',
-          correctText: existing ? existing.correctText : ''
-        });
-      }
-      setEditData(prev => ({ ...prev, matchingQuestions: newQuestions }));
+    const updatedQuestions = editData.matchingQuestions.map((q, idx) => ({
+      ...q,
+      questionNumber: idx + 1
+    }));
+    if (JSON.stringify(updatedQuestions) !== JSON.stringify(editData.matchingQuestions)) {
+      setEditData(prev => ({ ...prev, matchingQuestions: updatedQuestions }));
     }
-  }, [editData.texts.length]);
+  }, [editData.matchingQuestions.length]);
 
   const addText = () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -40,6 +32,22 @@ const Type4MatchingHeadings = ({ question, onUpdate, onDelete, index }) => {
     setEditData(prev => ({
       ...prev,
       texts: prev.texts.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addMatchingQuestion = () => {
+    const newQuestion = {
+      questionNumber: editData.matchingQuestions.length + 1,
+      question: '',
+      correctText: ''
+    };
+    setEditData(prev => ({ ...prev, matchingQuestions: [...prev.matchingQuestions, newQuestion] }));
+  };
+
+  const removeMatchingQuestion = (index) => {
+    setEditData(prev => ({
+      ...prev,
+      matchingQuestions: prev.matchingQuestions.filter((_, i) => i !== index)
     }));
   };
 
@@ -182,17 +190,35 @@ const Type4MatchingHeadings = ({ question, onUpdate, onDelete, index }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Matching Questions
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Matching Questions
+              </label>
+              <button
+                onClick={addMatchingQuestion}
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+              >
+                <Plus size={14} />
+                Add Question
+              </button>
+            </div>
             <div className="space-y-3">
               {editData.matchingQuestions.map((mq, idx) => (
                 <div key={idx} className="border border-slate-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-700">
-                      {mq.questionNumber}
-                    </span>
-                    <span className="text-sm font-medium text-slate-700">Question {mq.questionNumber}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-700">
+                        {mq.questionNumber}
+                      </span>
+                      <span className="text-sm font-medium text-slate-700">Question {mq.questionNumber}</span>
+                    </div>
+                    <button
+                      onClick={() => removeMatchingQuestion(idx)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                      title="Remove question"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                   <div className="space-y-2">
                     <input

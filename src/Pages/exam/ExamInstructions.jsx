@@ -42,13 +42,13 @@ const ExamInstructions = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 p-8">
-      
+    <div className="h-screen bg-white text-gray-900 p-5 flex flex-col">
+
       {/* Page Title */}
       <h1 className="text-3xl font-semibold mb-6">Exam Instructions</h1>
 
       {/* Grey Box Container */}
-      <div className="bg-[#F3F3F3] border border-gray-300 p-8 ">
+      <div className="bg-[#F3F3F3] border border-gray-300 p-8 flex-1 overflow-y-auto rounded-md">
 
         {/* Section Title */}
         <h2 className="text-xl font-bold mb-4">

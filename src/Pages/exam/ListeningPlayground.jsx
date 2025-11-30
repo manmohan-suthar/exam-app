@@ -39,6 +39,8 @@ export default function ListeningPlaygroundUI() {
   const [paper, setPaper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPart, setCurrentPart] = useState(0);
+  const [examCompleted, setExamCompleted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
 
@@ -57,7 +59,8 @@ export default function ListeningPlaygroundUI() {
           setLoading(false);
           return;
         }
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${exam.exam_paper}`);
+        const paperId = exam.exam_paper.listening_exam_paper || exam.exam_paper.listening || exam.exam_paper;
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${paperId}`);
         if (!cancelled) {
           if (res.ok) {
             const data = await res.json();
@@ -124,6 +127,9 @@ export default function ListeningPlaygroundUI() {
       setIsPlaying(false);
       if (paper && currentPart < paper.sections.length - 1) {
         setCurrentPart((s) => s + 1);
+      } else {
+        // Exam completed
+        setExamCompleted(true);
       }
     };
 
@@ -204,6 +210,49 @@ export default function ListeningPlaygroundUI() {
       }
     }
   }, [isPlaying]);
+
+  const submitExam = async () => {
+    if (!paper) return;
+
+    setSubmitting(true);
+    try {
+      const examData = localStorage.getItem("examAssignment");
+      if (!examData) {
+        alert("Exam data not found");
+        return;
+      }
+      const exam = JSON.parse(examData);
+
+      const paperId = exam.exam_paper.listening_exam_paper || exam.exam_paper.listening || exam.exam_paper;
+      const payload = {
+        studentId: exam.student._id || exam.student, // assuming exam has student
+        assignmentId: exam._id,
+        answers: answers
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${paperId}/submit-results`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Exam submitted successfully! Score: ${result.result.score}`);
+        navigate('/dashboard'); // or wherever
+      } else {
+        const error = await response.json();
+        alert(`Submission failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('An error occurred while submitting the exam');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Memoized notebook renderer
   const NotebookBlankRenderer = React.memo(function NotebookBlankRenderer({ questions }) {
@@ -420,7 +469,8 @@ export default function ListeningPlaygroundUI() {
 
           {/* instructions */}
           <div className="bg-gray-100 border-l-4 border-gray-300 p-4 mb-6">
-            You will hear some short conversations. You will hear each conversation twice. Choose the correct answer to complete each conversation.
+            {currentSection?.introduction && <p className="text-gray-600">{currentSection.introduction}</p>}
+          
           </div>
 
           {/* questions area */}
@@ -449,6 +499,19 @@ export default function ListeningPlaygroundUI() {
               ))
             )}
           </div>
+
+          {/* Submit button */}
+          {examCompleted && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={submitExam}
+                disabled={submitting}
+                className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+              >
+                {submitting ? 'Submitting...' : 'Submit Exam'}
+              </button>
+            </div>
+          )}
         </main>
       </div>
     </div>

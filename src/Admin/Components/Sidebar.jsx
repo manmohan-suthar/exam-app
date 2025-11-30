@@ -11,7 +11,8 @@ import {
   Calendar,
   UserCheck,
   Notebook,
-  Shield
+  Shield,
+  BarChart3
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
@@ -27,6 +28,7 @@ const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
     { id: 'students', label: 'Students', icon: Users },
     { id: 'agents', label: 'Agents', icon: Shield },
     { id: 'set-exam', label: 'Set Exam', icon: Calendar },
+    { id: 'results', label: 'Results', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
