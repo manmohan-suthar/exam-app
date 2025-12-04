@@ -1,0 +1,63 @@
+# Node modules  
+node_modules/
+api/
+
+# Vite build output
+dist/
+dist-ssr/
+*.local
+
+# Electron build output
+out/
+release/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Cache
+.vite/
+.cache/
+.eslintcache
+*.tsbuildinfo
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# Editor folders
+.vscode/
+.idea/
+
+# Electron packaging caches
+electron-builder.yml
+electron-builder.env
+electron-builder-cache/
+electron-builder-appx/
+electron-builder-out/
+
+# Temp
+tmp/
+temp/
+*.tmp
+
+# Optional: Ignore test coverage
+coverage/
+
+# Optional: Ignore lock files (if using only one package manager)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Build artifacts
+app.zip

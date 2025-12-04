@@ -1,0 +1,382 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IELTS Reading Paper",
+  "description": "Schema for IELTS Reading Exam Paper data structure",
+  "type": "object",
+  "properties": {
+    "_id": {
+      "type": "string",
+      "description": "MongoDB ObjectId"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Title of the reading paper"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Description of the reading paper"
+    },
+    "passages": {
+      "type": "array",
+      "description": "Array of reading passages",
+      "items": {
+        "$ref": "#/definitions/readingPassage"
+      }
+    },
+    "questions": {
+      "type": "array",
+      "description": "Array of all questions across all passages",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/definitions/mcqQuestion" },
+          { "$ref": "#/definitions/fillInBlankQuestion" },
+          { "$ref": "#/definitions/shortAnswerQuestion" }
+        ]
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "published"],
+      "default": "draft",
+      "description": "Publication status of the paper"
+    },
+    "createdBy": {
+      "type": "string",
+      "description": "Admin ID who created the paper"
+    },
+    "estimatedTime": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 180,
+      "default": 60,
+      "description": "Estimated time in minutes"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creation timestamp"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp"
+    }
+  },
+  "required": ["title", "createdBy"],
+  "definitions": {
+    "comprehensionQuestion": {
+      "type": "object",
+      "properties": {
+        "readingPaperId": {
+          "type": "string",
+          "description": "Reference to the reading paper"
+        },
+        "passageIndex": {
+          "type": "number",
+          "description": "Index of the associated passage"
+        },
+        "questionNumber": {
+          "type": "number",
+          "description": "Question number within the comprehension set"
+        },
+        "question": {
+          "type": "string",
+          "description": "The question text"
+        },
+        "questionType": {
+          "type": "string",
+          "enum": ["multiple_choice", "true_false", "short_answer", "gap_fill"],
+          "description": "Type of the question"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "letter": {
+                "type": "string",
+                "description": "Option letter"
+              },
+              "text": {
+                "type": "string",
+                "description": "Option text"
+              }
+            },
+            "required": ["letter", "text"]
+          },
+          "description": "Multiple choice options"
+        },
+        "correctAnswer": {
+          "type": "string",
+          "description": "Correct answer"
+        },
+        "maxWords": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum words for short answer"
+        },
+        "unitNumber": {
+          "type": "number",
+          "description": "Section number"
+        },
+        "order": {
+          "type": "number",
+          "description": "Order within the set"
+        }
+      },
+      "required": ["readingPaperId", "passageIndex", "questionNumber", "question", "questionType", "correctAnswer", "unitNumber"]
+    },
+    "readingPassage": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Title of the passage"
+        },
+        "content": {
+          "type": "string",
+          "description": "HTML content of the passage"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/imageData"
+          }
+        },
+        "order": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order within the section"
+        },
+        "unitNumber": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "Section number (1-4)"
+        },
+        "sectionTitle": {
+          "type": "string",
+          "description": "Title of the section"
+        },
+        "globalIndex": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Global index across all passages"
+        },
+        "localIndex": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Local index within the section"
+        },
+        "questions": {
+          "type": "array",
+          "description": "Questions associated with this passage",
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/mcqQuestion" },
+              { "$ref": "#/definitions/fillInBlankQuestion" },
+              { "$ref": "#/definitions/shortAnswerQuestion" }
+            ]
+          }
+        }
+      },
+      "required": ["unitNumber"]
+    },
+    "imageData": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string"
+        },
+        "originalName": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        },
+        "uploadedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["filename", "originalName", "path", "size"]
+    },
+    "mcqQuestion": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["mcq"],
+          "description": "Question type"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The question text"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "letter": {
+                "type": "string",
+                "enum": ["A", "B", "C", "D"],
+                "description": "Option letter"
+              },
+              "text": {
+                "type": "string",
+                "description": "Option text"
+              }
+            },
+            "required": ["letter", "text"]
+          },
+          "description": "Multiple choice options"
+        },
+        "correctAnswer": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D"],
+          "description": "Correct option letter"
+        },
+        "passageIndex": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Index of the associated passage"
+        },
+        "unitNumber": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "Section number"
+        },
+        "order": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order of the question"
+        }
+      },
+      "required": ["type", "question", "options", "correctAnswer", "passageIndex", "unitNumber"]
+    },
+    "fillInBlankQuestion": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["fill_in_blank"],
+          "description": "Question type"
+        },
+        "question": {
+          "type": "string",
+          "description": "Question or instruction text"
+        },
+        "fillOptions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Fill option text"
+              }
+            },
+            "required": ["text"]
+          },
+          "description": "Options shown on the right side for filling blanks"
+        },
+        "correctAnswer": {
+          "type": "string",
+          "description": "Correct fill option text"
+        },
+        "blankPosition": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Position of the blank in the passage text"
+        },
+        "passageIndex": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Index of the associated passage"
+        },
+        "unitNumber": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "Section number"
+        },
+        "order": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order of the question"
+        }
+      },
+      "required": ["type", "fillOptions", "correctAnswer", "passageIndex", "unitNumber"]
+    },
+    "shortAnswerQuestion": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["short_answer"],
+          "description": "Question type"
+        },
+        "question": {
+          "type": "string",
+          "description": "Question or instruction text"
+        },
+        "shortAnswerOptions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Short answer option text"
+              }
+            },
+            "required": ["text"]
+          },
+          "description": "Possible short answer options"
+        },
+        "correctAnswer": {
+          "type": "string",
+          "description": "Correct short answer text"
+        },
+        "blankPosition": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Position of the blank in the passage text"
+        },
+        "passageIndex": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Index of the associated passage"
+        },
+        "unitNumber": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "Section number"
+        },
+        "order": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Order of the question"
+        }
+      },
+      "required": ["type", "shortAnswerOptions", "correctAnswer", "passageIndex", "unitNumber"]
+    }
+  }
+}
