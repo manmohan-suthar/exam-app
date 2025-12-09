@@ -2,10 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 
-const SpeakingPlayground = () => {
-  const location = useLocation();
+const SpeakingPlayground = ({ test }) => {
   const navigate = useNavigate();
-  const { test } = location.state || {};
 
   const studentName = test?.student?.name || "Suthar";
   const agentName = "Agent";
@@ -386,7 +384,12 @@ const SpeakingPlayground = () => {
       });
       // Close video call
       cleanupWebRTC();
-      navigate("/exam-results");
+      // In combined mode, don't navigate - let the parent handle it
+      const combinedExams = localStorage.getItem("combinedExams");
+      if (!combinedExams) {
+        // Only navigate if not in combined mode
+        navigate("/exam-results");
+      }
     } catch (err) {
       console.error(err);
       if (!auto) alert("Error submitting exam. Please try again.");

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 /**
  * ListeningPlaygroundUI.jsx
- *
+ *FF
  * - Single-file component (JSX) that renders:
  *   - Header + left sidebar (parts)
  *   - Sticky-like audio player
@@ -39,6 +39,8 @@ export default function ListeningPlaygroundUI() {
   const [paper, setPaper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPart, setCurrentPart] = useState(0);
+  const [examCompleted, setExamCompleted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
 
@@ -47,17 +49,36 @@ export default function ListeningPlaygroundUI() {
     let cancelled = false;
     const fetchPaper = async () => {
       try {
-        const examData = localStorage.getItem("examAssignment");
+        // First try combined exams data
+        const combinedExams = localStorage.getItem("combinedExams");
+        const combinedAssignments = localStorage.getItem("combinedAssignments");
+
+        let examData = null;
+        if (combinedExams && combinedAssignments) {
+          const exams = JSON.parse(combinedExams);
+          const assignments = JSON.parse(combinedAssignments);
+          const listeningExam = exams.find(exam => exam.skill === 'listening');
+          if (listeningExam) {
+            examData = { ...listeningExam, assignments };
+          }
+        }
+
+        // Fallback to individual exam data
         if (!examData) {
+          examData = localStorage.getItem("examAssignment");
+          if (!examData) {
+            setLoading(false);
+            return;
+          }
+          examData = JSON.parse(examData);
+        }
+
+        if (!examData?.exam_paper) {
           setLoading(false);
           return;
         }
-        const exam = JSON.parse(examData);
-        if (!exam?.exam_paper) {
-          setLoading(false);
-          return;
-        }
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${exam.exam_paper}`);
+        const paperId = examData.exam_paper.listening_exam_paper || examData.exam_paper.listening || examData.exam_paper;
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${paperId}`);
         if (!cancelled) {
           if (res.ok) {
             const data = await res.json();
@@ -124,6 +145,9 @@ export default function ListeningPlaygroundUI() {
       setIsPlaying(false);
       if (paper && currentPart < paper.sections.length - 1) {
         setCurrentPart((s) => s + 1);
+      } else {
+        // Exam completed
+        setExamCompleted(true);
       }
     };
 
@@ -175,6 +199,13 @@ export default function ListeningPlaygroundUI() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPart, getAudioForPart]);
 
+  // Auto-submit when exam completes
+  useEffect(() => {
+    if (examCompleted) {
+      submitExam();
+    }
+  }, [examCompleted]);
+
   const blankQuestions = useMemo(() => {
     if (!paper) return [];
     const currentSection = paper.sections?.[currentPart] || {};
@@ -191,19 +222,84 @@ export default function ListeningPlaygroundUI() {
 
   const togglePlay = useCallback(async () => {
     const a = audioRef.current;
-    if (!a) return;
-    if (isPlaying) {
-      a.pause();
+    if (!a || isPlaying) return; // Only allow play if not playing
+    try {
+      await a.play();
+      setIsPlaying(true);
+    } catch (err) {
       setIsPlaying(false);
-    } else {
-      try {
-        await a.play();
-        setIsPlaying(true);
-      } catch (err) {
-        setIsPlaying(false);
-      }
     }
   }, [isPlaying]);
+
+  const submitExam = async () => {
+    if (!paper) return;
+
+    setSubmitting(true);
+    try {
+      // Check if we're in combined mode
+      const combinedExams = localStorage.getItem("combinedExams");
+      const combinedAssignments = localStorage.getItem("combinedAssignments");
+
+      let examData = null;
+      if (combinedExams && combinedAssignments) {
+        const exams = JSON.parse(combinedExams);
+        const assignments = JSON.parse(combinedAssignments);
+        const listeningExam = exams.find(exam => exam.skill === 'listening');
+        if (listeningExam) {
+          examData = { ...listeningExam, assignments };
+        }
+      }
+
+      // Fallback to individual exam data
+      if (!examData) {
+        examData = localStorage.getItem("examAssignment");
+        if (!examData) {
+          alert("Exam data not found");
+          return;
+        }
+        examData = JSON.parse(examData);
+      }
+
+      const studentData = localStorage.getItem("student");
+      if (!studentData) {
+        alert("Student data not found");
+        return;
+      }
+      const student = JSON.parse(studentData);
+
+      const paperId = examData.exam_paper.listening_exam_paper || examData.exam_paper.listening || examData.exam_paper;
+      const payload = {
+        studentId: student._id || student.student_id,
+        assignmentId: examData.assignmentId,
+        answers: answers
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${paperId}/submit-results`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // In combined mode, don't navigate - let the parent handle it
+        if (!(combinedExams && combinedAssignments)) {
+          // Only navigate if not in combined mode
+          navigate("/exam/verification", { state: { skill: "reading" } });
+        }
+      } else {
+        const error = await response.json();
+        alert(`Submission failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('An error occurred while submitting the exam');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Memoized notebook renderer
   const NotebookBlankRenderer = React.memo(function NotebookBlankRenderer({ questions }) {
@@ -247,7 +343,7 @@ export default function ListeningPlaygroundUI() {
 
     return (
       <div className="pt-10 flex items-center justify-center">
-        <div className="relative w-full max-w-4xl">
+        <div className="relative ">
           {/* shadow base */}
           <div className="absolute left-6 right-0 bottom-0 h-6 bg-gray-700 rounded-b-2xl transform translate-y-4 shadow-lg" />
 
@@ -420,7 +516,8 @@ export default function ListeningPlaygroundUI() {
 
           {/* instructions */}
           <div className="bg-gray-100 border-l-4 border-gray-300 p-4 mb-6">
-            You will hear some short conversations. You will hear each conversation twice. Choose the correct answer to complete each conversation.
+            {currentSection?.introduction && <p className="text-gray-600">{currentSection.introduction}</p>}
+          
           </div>
 
           {/* questions area */}
@@ -449,6 +546,19 @@ export default function ListeningPlaygroundUI() {
               ))
             )}
           </div>
+
+          {/* Submit button */}
+          {examCompleted && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={submitExam}
+                disabled={submitting}
+                className="px-6 py-3 bg-[#FF3200] text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+              >
+                {submitting ? 'Submitting...' : 'Submit Exam'}
+              </button>
+            </div>
+          )}
         </main>
       </div>
     </div>

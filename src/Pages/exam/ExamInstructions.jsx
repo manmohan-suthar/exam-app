@@ -5,17 +5,17 @@ import axios from "axios";
 const ExamInstructions = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { test } = location.state || {};
+  const { exams, assignments } = location.state || {};
   const [student, setStudent] = useState(null);
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!test) {
+    if (!exams || exams.length === 0) {
       navigate("/dashboard");
     }
-  }, [test, navigate]);
+  }, [exams, navigate]);
 
   useEffect(() => {
     const s = localStorage.getItem("student");
@@ -24,12 +24,11 @@ const ExamInstructions = () => {
 
   useEffect(() => {
     const fetchInstructions = async () => {
-      if (!test?.skill) return;
-
       try {
         setLoading(true);
         setError('');
-        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/instructions?category=${test.skill}`);
+        // Fetch general instructions for all exams
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/instructions?category=listening`);
         setInstructions(response.data.instruction.content || '');
       } catch (error) {
         console.error('Error fetching instructions:', error);
@@ -40,85 +39,16 @@ const ExamInstructions = () => {
     };
 
     fetchInstructions();
-  }, [test?.skill]);
+  }, []);
 
-  const handleStartExam = async () => {
-    console.log(test);
 
-    if (test.skill === "listening") {
-      // Start the exam via API
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listening/${test.exam_paper}/start-exam`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentId: student._id || student.student_id,
-            assignmentId: test.assignmentId
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to start exam');
-        }
-
-        const examData = await response.json();
-
-        // Update assignment status
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${test.assignmentId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            examStarted: true
-          })
-        });
-
-        // Store exam data in localStorage
-        localStorage.setItem("examAssignment", JSON.stringify({
-          ...test,
-          exam_type: test.skill,
-          exam_paper: test.exam_paper,
-          examStarted: true
-        }));
-
-        // Navigate to listening exam
-        navigate("/exam/listening", {
-          state: {
-            test: {
-              ...test,
-              examStarted: true
-            }
-          }
-        });
-
-      } catch (error) {
-        console.error('Error starting listening exam:', error);
-        // Optionally show error to user
-      }
-    } else {
-      try {
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${test.assignmentId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ examStarted: true })
-        });
-      } catch (error) {
-        console.error('Error updating assignment:', error);
-      }
-
-      // Navigate based on exam type
-      if (test.skill === "speaking") {
-        navigate("/exam/speaking", { state: { test } });
-      } else if (test.skill === "reading") {
-        navigate("/exam/reading", { state: { test } });
-      } else {
-        navigate("/exam/start", { state: { test } });
-      }
-    }
+  const handleStartExam = () => {
+    // Navigate to combined playground with all exam data
+    navigate("/exam/combined-playground", { state: { exams, assignments } });
   };
 
   const handleBack = () => {
-    navigate("/exam/verification", { state: { test } });
+    navigate("/exam/verification");
   };
 
   return (
@@ -131,9 +61,9 @@ const ExamInstructions = () => {
       <div className="bg-[#F3F3F3] border border-gray-300 p-8 flex-1 overflow-y-auto rounded-md">
 
         {/* Section Title */}
-        <h2 className="text-xl font-bold mb-4">
-          Academic ({test?.skill || "Listening"})
-        </h2>
+        {/* <h2 className="text-xl font-bold mb-4">
+          Academic (Listening, Reading, Writing, Speaking)
+        </h2> */}
 
         {/* Loading State */}
         {loading && (

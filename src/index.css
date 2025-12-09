@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+  min-height: 100vh;
+    
+    overflow: hidden;
+}
+
+
 .hide-scrollbar {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -7,5 +17,74 @@
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
+}
+
+/* Custom small slider */
+.small-audio-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #d1d1d1;
+  border-radius: 4px;
+  height: 3px;
+  cursor: pointer;
+}
+/* RESET DEFAULT */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 4px;
+  background: #e5e7eb; /* track color */
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* ✅ WEBKIT (Chrome, Edge, Safari) */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #ff3200;   /* 🔴 dot color */
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* ✅ FIREFOX */
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #ff3200;   /* 🔴 dot color */
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* ✅ Active (when dragging) */
+.volume-slider:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* Track */
+.small-audio-range::-webkit-slider-runnable-track {
+  height: 3px;
+  background: #d1d1d1;
+  border-radius: 4px;
+}
+
+/* Slider Thumb (cursor) */
+.small-audio-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 12px;
+  background: #FF3200; /* change color here */
+  border-radius: 50%;
+  cursor: grab;
+  margin-top: -4.5px; /* centers the thumb */
+}
+
+/* When dragging */
+.small-audio-range:active::-webkit-slider-thumb {
+  cursor: grabbing;
 }
 

@@ -73,7 +73,7 @@ const InstructionsEditor = ({ category }) => {
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-800 mb-2">
-          {categoryLabels[category]} Instructions
+          All  Instructions
         </h2>
         <p className="text-slate-600">
           Edit the instructions that will be shown to students for the {categoryLabels[category].toLowerCase()} section.

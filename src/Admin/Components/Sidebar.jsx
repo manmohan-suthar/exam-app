@@ -34,9 +34,9 @@ const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
       icon: FileText,
       hasSubmenu: true,
       subItems: [
-        { id: 'listening-instructions', label: 'Listening', icon: FileAudio },
-        { id: 'reading-instructions', label: 'Reading', icon: Notebook },
-        { id: 'writing-instructions', label: 'Writing', icon: PenTool }
+        { id: 'listening-instructions', label: 'All Instructions', icon: FileAudio },
+        // { id: 'reading-instructions', label: 'Reading', icon: Notebook },
+        // { id: 'writing-instructions', label: 'Writing', icon: PenTool }
       ]
     },
     { id: 'registrations', label: 'Registrations', icon: Monitor },

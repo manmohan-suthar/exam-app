@@ -199,7 +199,7 @@ export default function AudioPlayer({
   const remaining = Math.max(0, duration - currentTime);
 
   return (
-    <div className="w-full mx-auto px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <div className=" mx-auto px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm">
       {/* Hidden audio element is expected from parent via audioRef - but keep fallback too */}
       {!audioRef?.current && <audio ref={audioRef} preload="metadata" />}
 

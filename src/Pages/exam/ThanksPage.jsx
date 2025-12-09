@@ -16,7 +16,7 @@ const ThanksPage = () => {
   return (
     <div
       style={{
-        backgroundImage: `url(${bgPhoto})`,
+        // backgroundImage: `url(${bgPhoto})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -37,17 +37,8 @@ const ThanksPage = () => {
 
     
 
-        {/* Student Photo */}
-        <img
-          src={student.student_photo}
-          alt="Student"
-          className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-gray-300 shadow-md mb-4"
-        />
 
-        {/* Student Name */}
-        <h1 className="text-2xl font-semibold text-gray-800 mb-1">
-          {student.name}
-        </h1>
+
 
         <p className="text-gray-500 mb-6 text-sm">
           Student ID: {student.student_id || student._id}
@@ -60,12 +51,12 @@ const ThanksPage = () => {
         </p>
 
         {/* Button */}
-        <button
+        {/* <button
           onClick={() => navigate("/dashboard")}
           className="w-full bg-[#FF3200] text-white py-3 rounded-lg text-lg font-semibold shadow hover:bg-[#ff3300b1] transition"
         >
           Go to Dashboard
-        </button>
+        </button> */}
       </div>
     </div>
   );

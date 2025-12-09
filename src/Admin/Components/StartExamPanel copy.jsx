@@ -11,6 +11,8 @@ const StartExamPanel = () => {
   const [message, setMessage] = useState('');
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedPC, setSelectedPC] = useState('');
+  const [autoLoginTime, setAutoLoginTime] = useState('');
+  const [enableAutoLogin, setEnableAutoLogin] = useState(false);
 
   const navigate = useNavigate();
 
@@ -43,6 +45,12 @@ const StartExamPanel = () => {
     }
   }, [selectedStudent, registrations]);
 
+  // Reset auto-login time when checkbox is unchecked
+  useEffect(() => {
+    if (!enableAutoLogin) {
+      setAutoLoginTime('');
+    }
+  }, [enableAutoLogin]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -76,18 +84,123 @@ const StartExamPanel = () => {
       return;
     }
     try {
+      // First, create login session
+      const registration = registrations.find(reg => reg.macAddress === selectedPC);
+      if (!registration) {
+        setMessage('PC not found');
+        return;
+      }
+
+      // Find the assignment
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const todayIST = new Date(now.getTime() + istOffset);
+      todayIST.setUTCHours(0, 0, 0, 0);
+      const tomorrowIST = new Date(todayIST.getTime() + 24 * 60 * 60 * 1000);
+
+      const assignment = assignments.find(a =>
+        a.student._id === selectedStudent &&
+        new Date(a.exam_date) >= todayIST &&
+        new Date(a.exam_date) < tomorrowIST
+      );
+
+      if (!assignment) {
+        setMessage('No exam assignment found for today');
+        return;
+      }
+
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/login-sessions`, {
+        student: selectedStudent,
+        pc: registration._id,
+        assignment: assignment._id
+      });
+
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/start-exam`, {
         studentId: selectedStudent,
         macAddress: selectedPC
       });
-      setMessage('Student logged in successfully on the selected device');
-      // The student will be automatically logged in on the device
+      setMessage('Student logged in successfully');
+      // Automatically log in the student and redirect to dashboard
+      localStorage.setItem('student', JSON.stringify(response.data.assignment.student));
+      localStorage.setItem('examAssignment', JSON.stringify(response.data.assignment));
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error starting exam:', error);
       setMessage(error.response?.data?.error || 'Error logging in student');
     }
   };
 
+  const handleSetAutoLoginTime = async () => {
+    if (!enableAutoLogin) {
+      setMessage('Auto-login is not enabled');
+      return;
+    }
+    if (!selectedStudent || !selectedPC) {
+      setMessage('Please select a student and a PC');
+      return;
+    }
+    if (!autoLoginTime) {
+      setMessage('Please select an auto-login time');
+      return;
+    }
+
+    // Validate that the selected time is in the future
+    const selectedTime = new Date(autoLoginTime);
+    const now = new Date();
+    if (selectedTime <= now) {
+      setMessage('Auto-login time must be in the future');
+      return;
+    }
+
+    try {
+      // Find the assignment for the selected student today
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const todayIST = new Date(now.getTime() + istOffset);
+      todayIST.setUTCHours(0, 0, 0, 0);
+      const tomorrowIST = new Date(todayIST.getTime() + 24 * 60 * 60 * 1000);
+
+      const assignment = assignments.find(a =>
+        a.student._id === selectedStudent &&
+        new Date(a.exam_date) >= todayIST &&
+        new Date(a.exam_date) < tomorrowIST
+      );
+
+      if (!assignment) {
+        setMessage('No exam assignment found for today');
+        return;
+      }
+
+      // Find the registration for the selected PC
+      const registration = registrations.find(reg => reg.macAddress === selectedPC);
+      if (!registration) {
+        setMessage('PC not found');
+        return;
+      }
+
+      // Update assignment with PC assignment and auto-login time
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments/${assignment._id}`, {
+        pc: registration._id,
+        auto_login_time: selectedTime
+      });
+
+      // Create login session
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/login-sessions`, {
+        student: selectedStudent,
+        pc: registration._id,
+        assignment: assignment._id,
+        autoLoginTime: selectedTime
+      });
+
+      setMessage('Auto-login time set successfully and PC assigned');
+      setEnableAutoLogin(false); // Reset the checkbox
+      setAutoLoginTime(''); // Clear the time input
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error setting auto-login time:', error);
+      setMessage(error.response?.data?.error || 'Error setting auto-login time');
+    }
+  };
 
   const todaysStudents = assignments.map(assignment => assignment.student).filter((student, index, self) =>
     self.findIndex(s => s._id === student._id) === index
@@ -137,15 +250,42 @@ const StartExamPanel = () => {
           </Select>
         </FormControl>
 
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={enableAutoLogin}
+              onChange={(e) => setEnableAutoLogin(e.target.checked)}
+              color="primary"
+            />
+          }
+          label="Enable Auto-Login Time"
+          sx={{ mb: 2 }}
+        />
+
+        {enableAutoLogin && (
+          <TextField
+            fullWidth
+            label="Auto-Login Time"
+            type="datetime-local"
+            value={autoLoginTime}
+            onChange={(e) => setAutoLoginTime(e.target.value)}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            sx={{ mb: 2 }}
+            required
+          />
+        )}
+
         <Button
           variant="contained"
-          color="primary"
+          color={enableAutoLogin ? "secondary" : "primary"}
           startIcon={<Play />}
-          onClick={handleLoginStudent}
-          disabled={!selectedStudent || !selectedPC}
+          onClick={enableAutoLogin ? handleSetAutoLoginTime : handleLoginStudent}
+          disabled={!selectedStudent || !selectedPC || (enableAutoLogin && !autoLoginTime)}
           fullWidth
         >
-          Login Student
+          {enableAutoLogin ? "Set Auto-Login Time" : "Login Student Now"}
         </Button>
       </Box>
       <Box sx={{ mt: 3 }}>
@@ -160,6 +300,8 @@ const StartExamPanel = () => {
                 <TableCell>Student ID</TableCell>
                 <TableCell>Exam Type</TableCell>
                 <TableCell>Exam Date</TableCell>
+                <TableCell>Exam Time</TableCell>
+                <TableCell>Auto-Login Time</TableCell>
                 <TableCell>Status</TableCell>
               </TableRow>
             </TableHead>
@@ -170,6 +312,13 @@ const StartExamPanel = () => {
                   <TableCell>{assignment.student.student_id}</TableCell>
                   <TableCell>{Array.isArray(assignment.exam_type) ? assignment.exam_type.join(', ') : assignment.exam_type}</TableCell>
                   <TableCell>{new Date(assignment.exam_date).toLocaleDateString()}</TableCell>
+                  <TableCell>{assignment.exam_time}</TableCell>
+                  <TableCell>
+                    {assignment.auto_login_time
+                      ? new Date(assignment.auto_login_time).toLocaleString()
+                      : 'Not Set'
+                    }
+                  </TableCell>
                   <TableCell>{assignment.examStarted ? 'Started' : 'Pending'}</TableCell>
                 </TableRow>
               ))}

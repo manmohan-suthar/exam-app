@@ -3,22 +3,13 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserInfo from "../../Components/UserInfo";
 import bgPhoto from "../../photos/bg-photo.jpg";
-import logo from "../../photos/Cerebral_Logo.png";
 
-/**
- * Build the absolute start timestamp (ms) from:
- *  - exam_date (ISO string, date portion)
- *  - exam_time ("HH:MM", IST)
- * We combine yyyy-mm-dd (from exam_date in UTC) with HH:MM +05:30.
- */
 function getExamStartMs(exam_date, exam_time) {
   if (!exam_date || !exam_time) return NaN;
-  const examDateStr = new Date(exam_date).toISOString().split("T")[0]; // yyyy-mm-dd
-  // Add explicit IST offset so it's timezone-safe
+  const examDateStr = new Date(exam_date).toISOString().split("T")[0];
   return new Date(`${examDateStr}T${exam_time}:00+05:30`).getTime();
 }
 
-/** Format seconds to HH:MM:SS */
 function formatHMS(s) {
   const n = Number.isFinite(s) ? Math.max(0, s) : 0;
   const h = Math.floor(n / 3600);
@@ -36,17 +27,13 @@ const Dashboard = () => {
   const [student, setStudent] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [examAssignment, setExamAssignment] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(null); // seconds to start
+  const [timeLeft, setTimeLeft] = useState(null);
 
-  // Load student from localStorage
   useEffect(() => {
     const s = localStorage.getItem("student");
     if (s) setStudent(JSON.parse(s));
   }, []);
 
-
-  
-  // Fetch assignments for this student
   useEffect(() => {
     if (!student?._id) return;
 
@@ -54,66 +41,62 @@ const Dashboard = () => {
       try {
         const url = `${import.meta.env.VITE_API_BASE_URL}/exam-assignments?studentId=${student._id}`;
         const res = await fetch(url);
-        if (!res.ok) {
-          console.error("Failed to fetch assignments:", res.status);
-          return;
-        }
+
+        if (!res.ok) return;
 
         const data = await res.json();
         const list = Array.isArray(data?.assignments) ? data.assignments : [];
+
         setAssignments(list);
         localStorage.setItem("assignments", JSON.stringify(list));
 
-        // Choose the next upcoming exam by absolute start time (IST)
-        const nowMs = Date.now();
+        let nowMs = Date.now();
         let upcoming = null;
-        let earliestStart = Infinity;
+        let earliest = Infinity;
 
-        for (const a of list) {
-          const startMs = getExamStartMs(a.exam_date, a.exam_time);
-          if (Number.isFinite(startMs) && startMs >= nowMs && startMs < earliestStart) {
-            earliestStart = startMs;
+        list.forEach((a) => {
+          const start = getExamStartMs(a.exam_date, a.exam_time);
+          if (Number.isFinite(start) && start >= nowMs && start < earliest) {
+            earliest = start;
             upcoming = a;
           }
-        }
+        });
 
-        if (!upcoming) {
+        if (upcoming) {
+          setExamAssignment(upcoming);
+          localStorage.setItem("examAssignment", JSON.stringify(upcoming));
+          setTimeLeft(Math.floor((earliest - nowMs) / 1000));
+        } else {
           setExamAssignment(null);
           setTimeLeft(null);
-          return;
         }
-
-        setExamAssignment(upcoming);
-        localStorage.setItem("examAssignment", JSON.stringify(upcoming));
-        setTimeLeft(Math.floor((earliestStart - nowMs) / 1000));
-      } catch (err) {
-        console.error("fetchAssignments error:", err);
+      } catch (e) {
+        console.error(e);
       }
     };
 
     fetchAssignments();
   }, [student]);
 
-  // Real-time ticking countdown (uses current time every tick)
   useEffect(() => {
     if (!examAssignment) return;
 
     const timer = setInterval(() => {
-      const examStartMs = getExamStartMs(examAssignment.exam_date, examAssignment.exam_time);
-      const diffSec = Math.floor((examStartMs - Date.now()) / 1000);
+      const ms = getExamStartMs(examAssignment.exam_date, examAssignment.exam_time);
+      const diff = Math.floor((ms - Date.now()) / 1000);
 
-      setTimeLeft(diffSec);
+      setTimeLeft(diff);
 
-      if (diffSec <= 0) {
+      if (diff <= 0) {
         clearInterval(timer);
         navigate("/exam/verification", { state: { skill: "listening" } });
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [examAssignment, navigate]);
+  }, [examAssignment]);
 
-  if (!student) {
+  if (!student)
     return (
       <div className="h-screen flex items-center justify-center">
         <button
@@ -124,83 +107,63 @@ const Dashboard = () => {
         </button>
       </div>
     );
-  }
-
-  const skills = ["Listening", "Reading", "Writing", "Speaking"];
-
-  const isExamSkill = (skill) => {
-    if (!examAssignment) return false;
-    const t = examAssignment.exam_type;
-    if (Array.isArray(t)) return t.includes(skill.toLowerCase());
-    return String(t || "").toLowerCase() === skill.toLowerCase();
-  };
 
   return (
-    <div className="grid grid-cols-6">
-      {/* Left Sidebar */}
-      {/* <div className="col-span-1 bg-[#F2F2F2] p-4 h-screen">
-        <div className="flex items-center gap-2 mb-4">
-          <img src={logo} className="w-10" alt="logo" />
-          <h2>Cerebral Scholars</h2>
-        </div>
+    <div
+      style={{
+        backgroundImage: `url(${bgPhoto})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+      className="min-h-screen relative flex items-center justify-center px-4"
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 "></div>
 
-        <span className="font-bold mb-2 block">Academic</span>
+      {/* CARD – same UI as ThanksPage */}
+      <div className="relative backdrop-blur-md bg-white/20 shadow-2xl rounded-2xl p-10 w-full max-w-2xl text-center">
 
-        <ul>
-          {skills.map((skill, i) => (
-            <li key={i}>
-              <button
-                onClick={() =>
-                  navigate("/exam/verification", { state: { skill: skill.toLowerCase() } })
-                }
-                className="w-full text-left flex justify-between px-3 py-2 border-b"
-              >
-                <span>{skill}</span>
-
-                {isExamSkill(skill) && timeLeft != null && (
-                  <span className="text-xs font-mono">
-                    {timeLeft <= 0 ? "Starting..." : formatHMS(timeLeft)}
-                  </span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div> */}
-
-      {/* Main Content */}
-      <div className="col-span-6 relative h-screen">
+        {/* Logo */}
         <img
-          src={bgPhoto}
-          className="absolute inset-0 w-full h-full object-cover"
-          alt="background"
+          src="https://examsimulation.languagecert.org/images/peoplecert-logo.svg"
+          className="h-14 mx-auto mb-6"
+          alt="logo"
         />
 
-        <div className="relative p-6">
-        <img src="https://examsimulation.languagecert.org/images/peoplecert-logo.svg" alt="logo" className="h-15 mb-5" />
-          <UserInfo student={student} />
+        {/* Student Info */}
+        <UserInfo student={student} />
 
-          {examAssignment && timeLeft != null && (
-            <div className="mt-6 ">
-              
-              <h3 className="text-[22px] font-semibold">Time Left to Start Exam</h3>
-              <p className="text-2xl mt-2 font-bold ">
-                {timeLeft <= 0 ? "Exam Starting..." : formatHMS(timeLeft)}
-              </p>
-              <p className=" mt-2 text-sm text-gray-600">
-                Scheduled (IST): <b>{examAssignment.exam_time}</b>
-              </p>
-            </div>
-          )}
+        {/* Countdown */}
+        {examAssignment && timeLeft != null && (
+          <div className="mt-8">
+            <h3 className="text-2xl font-semibold text-gray-800">
+              Time Left to Start Exam
+            </h3>
 
-          {!examAssignment && (
-            <div className="mt-6 ">
-             
-              <h3 className="text-lg font-semibold">Upcoming Exam</h3>
-              <p className="r text-gray-600">No upcoming exam found.</p>
-            </div>
-          )}
-        </div>
+            <p className="text-4xl font-bold mt-3 text-gray-900 tracking-wide">
+              {timeLeft <= 0 ? "Exam Starting..." : formatHMS(timeLeft)}
+            </p>
+
+            <p className="mt-3 text-sm text-gray-700">
+              Scheduled at: <b>{examAssignment.exam_time}</b>
+            </p>
+          </div>
+        )}
+
+        {!examAssignment && (
+          <div className="mt-8">
+            <h3 className="text-xl font-semibold text-gray-800">Upcoming Exam</h3>
+            <p className="text-gray-700 mt-1">No upcoming exam found.</p>
+          </div>
+        )}
+
+        {/* Button */}
+        {/* <button
+          onClick={() => navigate("/instructions")}
+          className="mt-10 w-full bg-[#FF3200] text-white py-3 rounded-lg text-lg font-semibold shadow hover:bg-[#ff3300b1] transition"
+        >
+          View Instructions
+        </button> */}
       </div>
     </div>
   );

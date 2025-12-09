@@ -16,8 +16,6 @@ const SetExam = () => {
     student: '',
     agent: '',
     exam_date: '',
-    exam_time: '',
-    duration: '',
     exam_tittle: '',
     exam_bio: '',
     auto_login_time: '',
@@ -184,8 +182,6 @@ const SetExam = () => {
         exam_type: selectedExamTypes,
         exam_paper: examPaperObj,
         exam_date: formData.exam_date,
-        exam_time: formData.exam_time,
-        duration: formData.duration || null,
         exam_tittle: formData.exam_tittle,
         exam_bio: formData.exam_bio,
         auto_login_time: formData.auto_login_time || null,
@@ -201,8 +197,6 @@ const SetExam = () => {
         student: '',
         agent: '',
         exam_date: '',
-        exam_time: '',
-        duration: '',
         exam_tittle: '',
         exam_bio: '',
         auto_login_time: '',
@@ -332,44 +326,16 @@ const SetExam = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Exam Date *</label>
-                <input
-                  type="date"
-                  name="exam_date"
-                  value={formData.exam_date}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Exam Time *</label>
-                <input
-                  type="time"
-                  name="exam_time"
-                  value={formData.exam_time}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Duration (minutes) - Optional</label>
-                <input
-                  type="number"
-                  name="duration"
-                  value={formData.duration}
-                  onChange={handleInputChange}
-                  min="15"
-                  max="180"
-                  placeholder="Leave empty for no limit"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Exam Date *</label>
+              <input
+                type="date"
+                name="exam_date"
+                value={formData.exam_date}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -456,7 +422,7 @@ const SetExam = () => {
                         {Array.isArray(assignment.exam_type) ? assignment.exam_type.join(', ') : assignment.exam_type} Exam
                       </p>
                       <p className="text-sm text-slate-500">
-                        {new Date(assignment.exam_date).toLocaleDateString()} at {assignment.exam_time}{assignment.duration ? ` (${assignment.duration} min)` : ''}
+                        {new Date(assignment.exam_date).toLocaleDateString()}
                       </p>
                       {assignment.agent && (
                         <p className="text-sm text-slate-500">

@@ -1,11 +1,11 @@
+import { Clock6 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import io from "socket.io-client";
 
-export default function ReadingPlayground() {
+export default function ReadingPlayground({ test, currentPart = 0, onPartChange, onReadingCompleted }) {
   const [paper, setPaper] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentPart, setCurrentPart] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -13,10 +13,19 @@ export default function ReadingPlayground() {
   const [assignment, setAssignment] = useState(null);
 
   const [socket, setSocket] = useState(null);
+  const hasRefreshedRef = useRef(false);
 
   const navigate = useNavigate();
-  const location = useLocation();
-  const { test } = location.state || {};
+  console.log(timeLeft);
+
+  // One-time page refresh on load
+  useEffect(() => {
+    if (!hasRefreshedRef.current && !sessionStorage.getItem('readingPlaygroundRefreshed')) {
+      hasRefreshedRef.current = true;
+      sessionStorage.setItem('readingPlaygroundRefreshed', 'true');
+      window.location.reload();
+    }
+  }, []);
 
   // Fetch paper and assignment
   useEffect(() => {
@@ -37,12 +46,22 @@ export default function ReadingPlayground() {
         if (!cancelled && assignmentRes.ok) {
           const assignmentData = await assignmentRes.json();
           setAssignment(assignmentData);
-          const readingTiming =
-            assignmentData?.assignment?.exam_paper?.reading_timing || 40;
-          const readingRemaining =
-            parseInt(localStorage.getItem("readingRemainingTime")) || 0;
-          const totalTime = readingTiming * 60 + readingRemaining;
-          setTimeLeft(totalTime);
+
+          // Fetch real-time reading timing from API
+          const timingRes = await fetch(
+            `${import.meta.env.VITE_API_BASE_URL}/reading-timing/${test.exam_paper}`
+          );
+          if (!cancelled && timingRes.ok) {
+            const timingData = await timingRes.json();
+            const realTimeTiming = timingData.timing || 40; // assuming timing in minutes
+            setTimeLeft(realTimeTiming * 60);
+          } else {
+            console.error("Failed fetching real-time timing:", timingRes.status);
+            // Fallback to assignment timing
+            const readingTiming =
+              assignmentData?.assignment?.exam_paper?.reading_timing || 40;
+            setTimeLeft(readingTiming * 60);
+          }
         } else {
           console.error("Failed fetching assignment:", assignmentRes.status);
           // Fallback to default
@@ -110,7 +129,7 @@ export default function ReadingPlayground() {
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        if (prev <= 1 && !submitted) {
           // Timer expired, auto-submit
           submitExam();
           return 0;
@@ -181,15 +200,23 @@ export default function ReadingPlayground() {
       if (response.ok) {
         const result = await response.json();
         setSubmitted(true);
-        // Store remaining reading time for writing exam bonus
-        localStorage.setItem("readingRemainingTime", timeLeft || 0);
-        // After successful submission, transition to writing exam
-        navigate("/exam/verification", { state: { skill: "writing" } });
+        // Notify parent of completion
+        if (onReadingCompleted) {
+          onReadingCompleted();
+        }
+        // In combined mode, don't navigate - let the parent handle it
+        const combinedExams = localStorage.getItem("combinedExams");
+        if (!combinedExams) {
+          // Only navigate if not in combined mode
+          navigate("/exam/verification", { state: { skill: "writing" } });
+        }
       } else if (response.status === 409) {
         // Already submitted, still navigate
         setSubmitted(true);
-        localStorage.setItem("readingRemainingTime", timeLeft || 0);
-        navigate("/exam/verification", { state: { skill: "writing" } });
+        const combinedExams = localStorage.getItem("combinedExams");
+        if (!combinedExams) {
+          navigate("/exam/verification", { state: { skill: "writing" } });
+        }
       } else {
         const error = await response.json();
         alert(`Submission failed: ${error.error}`);
@@ -203,6 +230,10 @@ export default function ReadingPlayground() {
   };
 
   const endExam = async () => {
+    // Store remaining time for bonus to writing exam
+    if (timeLeft > 0) {
+      localStorage.setItem('readingRemainingTime', timeLeft.toString());
+    }
     // Stop the timer
     setTimeLeft(null);
     // Autosave and navigate
@@ -252,7 +283,7 @@ export default function ReadingPlayground() {
                   value={opt.letter}
                   checked={selected}
                   readOnly
-                  className="sr-only"
+                 className="hidden"
                 />
                 <div
                   className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -302,7 +333,7 @@ export default function ReadingPlayground() {
                   value={opt.letter}
                   checked={selected}
                   readOnly
-                  className="sr-only"
+                  className="hidden"
                 />
                 <div
                   className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -337,7 +368,7 @@ export default function ReadingPlayground() {
       .map(([, val]) => val);
     return (
       <div className="p-4 flex gap-6">
-        <div className="flex-1 mb-4 bg-[#EEEEEE] p-4 border max-h-96 overflow-y-auto">
+        <div className="flex-1 mb-4 bg-[#EEEEEE] p-4  text-[11px] border max-h-96 overflow-y-auto">
           {parts.map((part, i) => {
             if (part.match(/\{gap\d+\}/)) {
               const gapNum = part.match(/\{gap(\d+)\}/)[1];
@@ -348,7 +379,9 @@ export default function ReadingPlayground() {
               return (
                 <span
                   key={i}
-                  className="inline-block border-2 border-dashed border-gray-400 px-2 py-1 mx-1 min-w-32 text-center relative"
+                  className={`inline-block border-1 rounded-2xl min-h-4 bg-white min-w-30 text-center relative ${
+                    assigned ? 'border-[#e94b1b]' : 'border-gray-400'
+                  }`}
                   onDrop={(e) => {
                     e.preventDefault();
                     const sentenceLetter = e.dataTransfer.getData("text");
@@ -360,7 +393,7 @@ export default function ReadingPlayground() {
                   onDragOver={(e) => e.preventDefault()}
                 >
                   {assigned ? (
-                    <div className="flex items-center justify-between">
+                    <div className="flex  border-amber-950  items-center justify-between mr-1 ml-1">
                       <span>{assignedSentence?.text || assigned}</span>
                       <button
                         onClick={(e) => {
@@ -377,7 +410,7 @@ export default function ReadingPlayground() {
                       </button>
                     </div>
                   ) : (
-                    "Drop sentence here"
+                    <div ></div>
                   )}
                 </span>
               );
@@ -393,13 +426,16 @@ export default function ReadingPlayground() {
                 key={sent.letter}
                 draggable={!isUsed}
                 onDragStart={(e) => e.dataTransfer.setData("text", sent.letter)}
-                className={`p-2 border cursor-move last:mb-0 ${
+                className={`p-1 rounded-2xl text-[14px] border cursor-move last:mb-0 ${
                   isUsed
                     ? "border-gray-300 bg-gray-200 text-gray-500"
                     : "border-[#ff3200] bg-[#f8b592] hover:bg-[#FFDFCA]"
                 }`}
               >
-                <strong>{sent.letter}.</strong> {sent.text}
+                <div className="flex flex-col text-center ">
+                <strong>{sent.letter}.</strong>
+                 {sent.text}
+                </div>
               </div>
             );
           })}
@@ -425,14 +461,17 @@ export default function ReadingPlayground() {
                 onDragStart={(e) => e.dataTransfer.setData("text", text.letter)}
                 className={`p-4 rounded-lg border cursor-move last:mb-0 ${
                   isUsed
-                    ? "bg-orange-100 border-gray-300 text-gray-500"
-                    : "bg-orange-100 border-orange-300 hover:bg-orange-200"
+                    ? "bg-[#F8B592] border-gray-300 text-gray-500"
+                    : "bg-[#F8B592] border-orange-300 hover:bg-[#FEF2E7]"
                 }`}
               >
+                <div className="flex flex-col text-center ">
                 <div className="font-bold text-lg mb-2">{text.letter}.</div>
-                <div className="text-gray-800 text-[10px] leading-relaxed">
+                <div className="text-gray-800 text-[10px] text-start leading-relaxed">
                   {text.content}
                 </div>
+                </div>
+
               </div>
             );
           })}
@@ -453,9 +492,9 @@ export default function ReadingPlayground() {
                 </p>
 
                 <div
-                  className={`border-2 text-[13px] border-dashed px-3 py-2 min-h-10 text-center flex items-center justify-center relative ${
+                  className={`p-2 ${
                     answers[`type4-${mq.questionNumber}`]
-                      ? "bg-[#ffd7c4] border-[#e94b1b]"
+                      ? "bg-[#FEF2E7] border-1 rounded border-[#e94b1b]"
                       : "border-gray-400"
                   }`}
                   onDrop={(e) => {
@@ -486,7 +525,9 @@ export default function ReadingPlayground() {
                       </button>
                     </div>
                   ) : (
-                    "Drop text here"
+                   <div className="text-gray-500 text-center text-[11px]">
+                    Drop Here
+                   </div>
                   )}
                 </div>
               </div>
@@ -526,7 +567,7 @@ export default function ReadingPlayground() {
                       value={opt.letter}
                       checked={selected}
                       readOnly
-                      className="sr-only"
+                     className="hidden"
                     />
                     <div
                       className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -577,7 +618,7 @@ export default function ReadingPlayground() {
                       value={opt.letter}
                       checked={selected}
                       readOnly
-                      className="sr-only"
+                      className="hidden"
                     />
                     <div
                       className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -662,7 +703,7 @@ export default function ReadingPlayground() {
                       value={opt.letter}
                       checked={selected}
                       readOnly
-                      className="sr-only"
+                     className="hidden"
                     />
                     <div
                       className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -736,7 +777,7 @@ export default function ReadingPlayground() {
                       value={opt.letter}
                       checked={selected}
                       readOnly
-                      className="sr-only"
+                     className="hidden"
                     />
                     <div
                       className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -789,7 +830,7 @@ export default function ReadingPlayground() {
   return (
     <div className="min-h-screen bg-white">
       {/* header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      {/* <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <img
@@ -812,49 +853,29 @@ export default function ReadingPlayground() {
             {submitting ? "Submitting..." : "Submit Exam"}
           </button>
 
-          {/* <div>
-            <button onClick={() => navigate(-1)}>back</button>
-          </div> */}
+      
         </div>
-      </header>
+      </header> */}
+       <div className="mb-2 w-full flex justify-between">
 
-      <div className="max-w-6xl mx-auto px-4 py-6 flex gap-6">
-        {/* left sidebar (sticky) */}
-        <aside className="w-48 pr-10 sticky top-24 self-start h-fit">
-          <div className="text-gray-600 font-semibold mb-2">Reading</div>
-
-          <div className="flex flex-col gap-1 pl-6">
-            {paper.passages?.map((s, idx) => {
-              const isActive = idx === currentPart;
-              return (
-                <button
-                  key={`part-${idx}`}
-                  onClick={() => setCurrentPart(idx)}
-                  className={`relative w-full text-left px-3 py-2 border transition-all duration-150 rounded-md ${
-                    isActive
-                      ? "bg-gray-900 text-white shadow-md"
-                      : "bg-white text-gray-800 hover:bg-gray-100"
-                  }`}
-                >
-                  {isActive && (
-                    <span
-                      className="absolute top-0 right-[-12px] h-full w-3 bg-gray-900"
-                      style={{ clipPath: "polygon(0 0, 100% 50%, 0 100%)" }}
-                    />
-                  )}
-                  <span className="text-sm font-semibold">
-                    Reading Part {idx + 1}
-                  </span>
-                </button>
-              );
-            })}
+       <div className="w-full flex items-center justify-end ">
+        <div className="flex items-center gap-2 font-mono text-[13px] font-semibold   text-white ">
+          <button className="bg-[#FF3200]   pl-5 pr-5 ">Preview</button>
+          <button className="bg-[#FF3200]   pl-5 pr-5 ">Next</button>
+          <button className="bg-[#FF3200]   pl-5 pr-5 " onClick={endExam}>End</button>
+          <p className="bg-[#FF3200] px-5 flex items-center justify-center gap-1 text-white">
+  {formatTime(timeLeft)}
+  <Clock6 size={16} />
+</p>
+        </div>
+      </div>
           </div>
-        </aside>
 
+      <div className="max-w-6xl  mx-auto py-2">
         {/* main content (scrollable) */}
-        <main className="flex-1  overflow-y-auto pr-2">
+        <main className="w-full h-[96vh] overflow-y-scroll pb-20 pr-2">
           {/* instructions */}
-          <div className="bg-gray-100 border-l-4 border-gray-300 p-4 mb-6">
+          <div className="bg-gray-100 border-l-4 border-gray-300 p-2 mb-6">
             Read the text and answer the questions.
           </div>
 
@@ -864,7 +885,7 @@ export default function ReadingPlayground() {
               q.type === "type2_gap_fill" ||
               q.type === "type5_reading_comprehension"
           ) ? (
-            <div className="flex w-full gap-6">
+            <div className="flex w-full  gap-6 ">
               {/* Passage Content (sticky, no height/width, no inner scroll) */}
               {(() => {
                 const currentPassage = paper.passages?.find(
@@ -888,7 +909,7 @@ export default function ReadingPlayground() {
                       const index = parseInt(num) - 1;
                       const question = type2Questions[index];
                       return question
-                        ? `<strong>(${question.order + 1})……………</strong>`
+                        ? `<strong>(${question.order + 1})___________</strong>`
                         : match;
                     }
                   );
@@ -907,7 +928,7 @@ export default function ReadingPlayground() {
               })()}
 
               {/* Questions area (normal flow; page scrolls these) */}
-              <div className="flex-1 space-y-6">
+              <div className="flex-1 space-y-6 ">
                 {currentQuestions.map((q) => (
                   <article key={q._id} className="bg-white last:mb-0">
                     <div className="p-1 pl-5 flex items-center bg-[#F7F7F7] border">

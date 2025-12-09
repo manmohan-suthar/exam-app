@@ -21,6 +21,7 @@ const AgentSpeakingControl = lazy(() => import('./Pages/dashboard/AgentSpeakingC
 const AdminDashboard = lazy(() => import('./Admin/Pages/AdminDashboard'));
 const CandidateDetailsVerification = lazy(() => import('./Pages/exam/CandidateDetailsVerification'));
 const ExamInstructions = lazy(() => import('./Pages/exam/ExamInstructions'));
+const CombinedPlayground = lazy(() => import('./Pages/exam/CombinedPlayground'));
 const ExamPlayground = lazy(() => import('./Pages/exam/ExamPlayground'));
 const ListeningPlayground = lazy(() => import('./Pages/exam/ListeningPlayground'));
 const ReadingPlayground = lazy(() => import('./Pages/exam/ReadingPlayground'));
@@ -51,6 +52,8 @@ function App() {
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/exam/verification" element={<CandidateDetailsVerification />} />
           <Route path="/exam/instructions" element={<ExamInstructions />} />
+          <Route path="/exam/playground" element={<CombinedPlayground />} />
+          <Route path="/exam/combined-playground" element={<CombinedPlayground />} />
           <Route path="/exam" element={<ExamPage />} />
           <Route path="/exam/start" element={<ExamPlayground />} />
           <Route path="/exam/listening" element={<ListeningPlayground />} />

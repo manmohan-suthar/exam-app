@@ -30,79 +30,72 @@ const LoadingPage = () => {
   useEffect(() => {
     if (!fingerprint) return;
     const macAddress = fingerprint.macAddress;
-    const uuid = fingerprint.uuid;
     console.log('MAC Address:', macAddress);
 
-    let checkInterval;
     let pollInterval;
 
-    const checkAutoLogin = async () => {
+    const checkForAssignment = async () => {
       try {
-        // Check for auto-login session
-        const checkResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/check-auto-login`, {
-          params: { macAddress }
-        });
+        // Get the registration for this PC
+        const regResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/registrations`);
+        const registration = regResponse.data.registrations.find(reg => reg.macAddress === macAddress);
 
-        if (checkResponse.data.eligible) {
-          const session = checkResponse.data.session;
+        if (registration && registration.studentId) {
+          const studentId = registration.studentId;
 
-          // Set student from session
-          setStudent(session.student);
-          localStorage.setItem('student', JSON.stringify(session.student));
-          if (window.electronAPI) {
-            await window.electronAPI.store.set('student', session.student);
-          }
-          setMessage('Authenticated. Waiting for exam to start...');
+          // Get student details
+          const studentResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/students`);
+          const student = studentResponse.data.students.find(s => s._id === studentId);
 
-          // Update session status to logged_in
-          await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/login-sessions/${session._id}`, {
-            status: 'logged_in'
-          });
-
-          // Clear the check interval
-          clearInterval(checkInterval);
-
-          // Start polling for exam status
-          pollInterval = setInterval(async () => {
-            try {
-              const statusResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/check-exam-status`, {
-                params: { macAddress, studentId: session.student._id }
-              });
-
-              if (statusResponse.data.examStarted) {
-                localStorage.setItem('examAssignment', JSON.stringify(statusResponse.data.assignment));
-                if (window.electronAPI) {
-                  await window.electronAPI.store.set('examAssignment', statusResponse.data.assignment);
-                }
-                clearInterval(pollInterval);
-                navigate('/dashboard');
-              }
-            } catch (error) {
-              console.error('Error checking exam status:', error);
-              setMessage('Error checking exam status. Retrying...');
+          if (student) {
+            setStudent(student);
+            localStorage.setItem('student', JSON.stringify(student));
+            if (window.electronAPI) {
+              await window.electronAPI.store.set('student', student);
             }
-          }, 5000); // Poll every 5 seconds
+            setMessage('Student authenticated. Waiting for exam to start...');
+
+            // Start polling for exam status
+            pollInterval = setInterval(async () => {
+              try {
+                const statusResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/check-exam-status`, {
+                  params: { macAddress, studentId }
+                });
+
+                if (statusResponse.data.examStarted) {
+                  localStorage.setItem('examAssignment', JSON.stringify(statusResponse.data.assignment));
+                  if (window.electronAPI) {
+                    await window.electronAPI.store.set('examAssignment', statusResponse.data.assignment);
+                  }
+                  clearInterval(pollInterval);
+                  navigate('/dashboard');
+                }
+              } catch (error) {
+                console.error('Error checking exam status:', error);
+                setMessage('Error checking exam status. Retrying...');
+              }
+            }, 5000); // Poll every 5 seconds
+          } else {
+            setMessage('Student not found. Waiting for assignment...');
+          }
         } else {
-          const reason = checkResponse.data.reason || 'Unknown reason';
-          console.log('Not eligible for auto-login:', reason);
-          setMessage(`Waiting for assignment... (${reason})`);
+          setMessage('Waiting for student assignment...');
         }
       } catch (error) {
-        console.error('Check auto-login error:', error);
-        const errorMsg = error.response?.data?.error || error.message || 'Unknown error';
-        setMessage(`Error checking auto-login: ${errorMsg}`);
+        console.error('Error checking for assignment:', error);
+        setMessage('Error checking for assignment. Retrying...');
       }
     };
 
     // Check every 5 seconds
-    checkInterval = setInterval(checkAutoLogin, 5000);
+    const checkInterval = setInterval(checkForAssignment, 5000);
 
     // Initial check
-    checkAutoLogin();
+    checkForAssignment();
 
     // Cleanup on unmount
     return () => {
-      if (checkInterval) clearInterval(checkInterval);
+      clearInterval(checkInterval);
       if (pollInterval) clearInterval(pollInterval);
     };
   }, [fingerprint, navigate]);
