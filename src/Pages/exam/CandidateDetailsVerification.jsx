@@ -242,7 +242,7 @@ const CandidateDetailsVerification = () => {
       disabled={startingExam || filteredTests.length === 0}
       className="bg-[#FF3A00] text-white px-12 py-2 text-lg rounded hover:bg-[#e03500] disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      Start All Exams
+      Start Exams
     </button>
   </div>
 </div>

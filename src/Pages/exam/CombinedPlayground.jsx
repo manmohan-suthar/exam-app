@@ -240,7 +240,7 @@ const CombinedPlayground = () => {
   const handlePartChange = useCallback((partIndex) => {
     if (activeModule === "listening") {
       // For listening, ensure all previous parts are completed before allowing navigation to later parts
-      for (let i = 1; i < partIndex; i++) {
+      for (let i = 10; i < partIndex; i++) {
         if (!completedPartsRef.current.includes(i)) {
           alert(`Please complete Part ${i + 1} before proceeding to Part ${partIndex + 1}.`);
           return;

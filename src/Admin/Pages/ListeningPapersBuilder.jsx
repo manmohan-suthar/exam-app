@@ -8,6 +8,8 @@ const ListeningPapersBuilder = () => {
   const [currentPaper, setCurrentPaper] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+
+
   const [activeTab, setActiveTab] = useState('list'); // 'list', 'builder', or 'preview'
   const [currentSection, setCurrentSection] = useState(0);
 
@@ -305,37 +307,56 @@ const ListeningPapersBuilder = () => {
     setActiveTab('preview');
   };
 
+  const fetchSinglePaper = async () => {
+    const res = await axios.get(
+      `${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper._id}`
+    );
+    setCurrentPaper(res.data.paper);
+  };
+  
+  useEffect(() => {
+    if (currentPaper?._id) {
+      fetchSinglePaper();
+    }
+  }, []);
+  
+
   const handleAudioUpload = async (event, sectionIndex) => {
     const file = event.target.files[0];
     if (!file) return;
-
-    if (!currentPaper?._id) {
-      alert('Please save the paper first before uploading audio.');
-      return;
-    }
-
+  
     const formData = new FormData();
-    formData.append('audio', file);
-    formData.append('sectionIndex', sectionIndex + 1);
-
+    formData.append("audio", file);
+    formData.append("sectionIndex", sectionIndex + 1);
+  
     try {
-      const response = await axios.post(
+      const res = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper._id}/upload-audio`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
+        formData
       );
-
-      updateSection(sectionIndex, { audioFile: response.data.audioFile });
-      alert('Audio uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading audio:', error);
-      alert('Error uploading audio');
+  
+      // ✅ REAL-TIME UPDATE
+      setCurrentPaper(prev => ({
+        ...prev,
+        sections: prev.sections.map((section, idx) =>
+          idx === sectionIndex
+            ? {
+                ...section,
+                audioFile: res.data.audioFile,
+                audioUrl: res.data.audioUrl // ✅ here
+              }
+            : section
+        )
+      }));
+  
+      alert("Audio uploaded");
+    } catch (err) {
+      console.error(err);
     }
   };
+  
+  
+  
 
   const publishPaper = async () => {
     const hasAudio = currentPaper.sections.some(section => section.audioFile || section.audioUrl);

@@ -21,6 +21,7 @@ const UserInfo = ({ student, registration }) => {
           src={student.student_photo}
           alt="User"
         />
+        {console.log(student)}
       </div>
 
        
