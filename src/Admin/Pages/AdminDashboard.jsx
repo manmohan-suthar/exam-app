@@ -122,6 +122,7 @@ const AdminDashboard = () => {
       <div className="flex-1 flex flex-col min-h-screen ml-64">
         <Header activeTab={activeTab} sidebarItems={sidebarItems} />
 
+        <div className="h-[96vh] pb-10 overflow-auto">
         <main className="flex-1 p-6 overflow-x-auto">
           {activeTab === 'dashboard' && (
             <>
@@ -228,6 +229,7 @@ const AdminDashboard = () => {
             </div>
           )}
         </main>
+        </div>
       </div>
     </div>
   );
