@@ -1,0 +1,42 @@
+name: Build & Publish Electron App (Windows)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'        # e.g. v1.0.1
+  workflow_dispatch: {}  # Manual run from Actions tab
+
+jobs:
+  win-build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Build & Publish Electron App
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win nsis --publish always
+
+      - name: Upload artifacts (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.yml
+            dist-electron/*.blockmap
