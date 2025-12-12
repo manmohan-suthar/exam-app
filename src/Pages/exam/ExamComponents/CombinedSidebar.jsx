@@ -1,6 +1,6 @@
 import React from "react";
 
-const CombinedSidebar = ({
+const CombinedSidebar = React.memo(({
   activeModule,
   onModuleChange,
   activePart,
@@ -64,7 +64,20 @@ const CombinedSidebar = ({
                   let isDisabled = false;
                   if (module.key === "reading" && !allListeningCompleted) isDisabled = true;
                   if (module.key === "writing" && !allReadingCompleted) isDisabled = true;
-                  isDisabled = isDisabled || (isCompleted && !isPartActive) || (module.key === "listening" && !isPartActive);
+        
+                  // For listening module: disable upcoming parts until current part is completed
+                  if (module.key === "listening" && activeModule === "listening") {
+                    // Disable all parts after the current active part
+                    if (idx > activePart) {
+                      isDisabled = true;
+                    }
+                    // For parts before current part, check if they're completed
+                    else if (idx < activePart) {
+                      isDisabled = !isPartCompleted(module.key, idx);
+                    }
+                  }
+        
+                  isDisabled = isDisabled || (isCompleted && !isPartActive);
 
                   return (
                     <button
@@ -115,6 +128,6 @@ const CombinedSidebar = ({
       </div>
     </aside>
   );
-};
+});
 
 export default CombinedSidebar;

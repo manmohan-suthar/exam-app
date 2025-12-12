@@ -23,6 +23,9 @@ const CombinedPlayground = () => {
   const [listeningCompleted, setListeningCompleted] = useState(false);
   const [readingCompleted, setReadingCompleted] = useState(false);
 
+  // Memoize the modules data to prevent unnecessary re-renders
+  const memoizedModulesData = React.useMemo(() => modulesData, [modulesData]);
+
   useEffect(() => {
     completedPartsRef.current = completedPartsListening;
   }, [completedPartsListening]);
@@ -49,25 +52,29 @@ const CombinedPlayground = () => {
   }, [readingCompleted]);
 
   // Check if listening is fully completed
-  useEffect(() => {
-    const listeningModule = modulesData.find(m => m.key === "listening");
-    if (listeningModule && completedPartsListening.length === listeningModule.parts.length) {
-      setListeningCompleted(true);
-    }
-  }, [completedPartsListening, modulesData]);
+  // useEffect(() => {
+  //   const listeningModule = modulesData.find(m => m.key === "listening");
+  //   if (listeningModule && completedPartsListening.length === listeningModule.parts.length) {
+  //     setListeningCompleted(true);
+  //   }
+  // }, [completedPartsListening, modulesData]);
 
   // Automatically switch to reading when listening is completed
   useEffect(() => {
-    if (listeningCompleted && activeModule === "listening") {
+    if (
+      listeningCompleted &&
+      activeModule === "listening"
+    ) {
       setActiveModule("reading");
       setActivePart(0);
+  
       const readingModule = modulesData.find(m => m.key === "reading");
-      if (readingModule && readingModule.timing) {
+      if (readingModule?.timing) {
         setTimeLeft(readingModule.timing * 60);
       }
     }
-  }, [listeningCompleted, activeModule, modulesData]);
-
+  }, [listeningCompleted]); // ❗ activeModule hata do dependency se
+  
   // Automatically switch to writing when reading is completed
   useEffect(() => {
     if (readingCompleted && activeModule === "reading") {
@@ -101,8 +108,15 @@ const CombinedPlayground = () => {
     // Fetch modules data
     const fetchModulesData = async () => {
       const data = [];
+      const seenModules = new Set(); // Track which modules we've already added
+
       for (const exam of exams) {
         try {
+          // Skip if we've already processed this module type
+          if (seenModules.has(exam.skill)) {
+            continue;
+          }
+
           // Fetch assignment to get timing
           let timing = 20; // default
           const assignmentRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${exam.assignmentId}`);
@@ -138,6 +152,7 @@ const CombinedPlayground = () => {
                 parts,
                 timing,
               });
+              seenModules.add("listening");
             }
           } else if (exam.skill === "reading") {
             const res = await fetch(
@@ -156,6 +171,7 @@ const CombinedPlayground = () => {
                 parts,
                 timing,
               });
+              seenModules.add("reading");
             }
           } else if (exam.skill === "writing") {
             const res = await fetch(
@@ -174,6 +190,7 @@ const CombinedPlayground = () => {
                 parts,
                 timing,
               });
+              seenModules.add("writing");
             }
           } else if (exam.skill === "speaking") {
             const parts = [
@@ -189,6 +206,7 @@ const CombinedPlayground = () => {
               parts,
               timing,
             });
+            seenModules.add("speaking");
           }
         } catch (err) {
           console.error(err);
@@ -223,8 +241,12 @@ const CombinedPlayground = () => {
   }, [timeLeft]);
 
   const handleModuleChange = useCallback((module) => {
-    // Defensive check to prevent forced navigation
-    if ((module === "reading" && !listeningCompleted) || (module === "writing" && !readingCompleted)) {
+    if (module === "reading" && !listeningCompleted) {
+      alert("Please complete all listening parts before proceeding to reading.");
+      return;
+    }
+    if (module === "writing" && !readingCompleted) {
+      alert("Please complete the reading exam before proceeding to writing.");
       return;
     }
     setActiveModule(module);
@@ -237,18 +259,56 @@ const CombinedPlayground = () => {
     }
   }, [modulesData, listeningCompleted, readingCompleted]);
 
-  const handlePartChange = useCallback((partIndex) => {
-    if (activeModule === "listening") {
-      // For listening, ensure all previous parts are completed before allowing navigation to later parts
-      for (let i = 10; i < partIndex; i++) {
-        if (!completedPartsRef.current.includes(i)) {
-          alert(`Please complete Part ${i + 1} before proceeding to Part ${partIndex + 1}.`);
-          return;
+  const handlePartChange = useCallback(
+    (partIndex, isAuto = false) => {
+  
+      // ✅ AUTO navigation → NO validation
+      if (isAuto) {
+        setActivePart(partIndex);
+        return;
+      }
+  
+      // ✅ ONLY manual navigation par validation
+      if (activeModule === "listening") {
+        for (let i = 0; i < partIndex; i++) {
+          if (!completedPartsRef.current.includes(i)) {
+            alert(
+              `Please complete Part ${i + 1} before proceeding to Part ${partIndex + 1}.`
+            );
+            return;
+          }
         }
       }
-    }
-    setActivePart(partIndex);
-  }, [activeModule]);
+  
+      setActivePart(partIndex);
+    },
+    [activeModule]
+  );
+  // ✅ AUTO SWITCH LISTENING PARTS
+useEffect(() => {
+  if (activeModule !== "listening") return;
+
+  // ✅ current part complete hua?
+  if (!completedPartsListening.includes(activePart)) return;
+
+  const listeningModule = modulesData.find(m => m.key === "listening");
+  const totalParts = listeningModule?.parts.length ?? 0;
+
+  // ✅ next part hai
+  if (activePart + 1 < totalParts) {
+    handlePartChange(activePart + 1, true); // 🔥 AUTO MOVE
+  } else {
+    // ✅ sab parts complete
+    setListeningCompleted(true);
+  }
+}, [
+  completedPartsListening,
+  activePart,
+  activeModule,
+  modulesData,
+  handlePartChange
+]);
+
 
   const renderActiveComponent = () => {
     const examData = exams?.find((exam) => exam.skill === activeModule);
@@ -347,7 +407,7 @@ const CombinedPlayground = () => {
             onModuleChange={handleModuleChange}
             activePart={activePart}
             onPartChange={handlePartChange}
-            modulesData={modulesData}
+            modulesData={memoizedModulesData}
             completedParts={activeModule === "listening" ? completedPartsListening : []}
             allListeningCompleted={listeningCompleted}
             allReadingCompleted={readingCompleted}

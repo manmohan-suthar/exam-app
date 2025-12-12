@@ -1,26 +1,23 @@
 {
-  "name": "online-exam",
+  "name": "peoplecert",
   "version": "1.0.0",
   "description": "Online Exam Application",
   "main": "electron/main.js",
+  "author": "peoplecert",
   "license": "ISC",
-"scripts": {
-  "dev": "concurrently \"npm:dev:vite\" \"npm:dev:electron\"",
-  "dev:vite": "vite",
-  "dev:electron": "electron .",
-
-  "dev:api": "cd api && npm start",
-  "api": "cd api && npm start",
-
-  "build": "vite build",
-  "build:electron": "npm run build && electron-builder",
-  "start": "electron ."
-}
-
-,
+  "scripts": {
+    "dev": "concurrently \"npm:dev:vite\" \"npm:dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "electron .",
+    "dev:api": "cd api && npm start",
+    "api": "cd api && npm start",
+    "build": "vite build",
+    "build:electron": "npm run build && electron-builder",
+    "start": "electron ."
+  },
   "build": {
     "appId": "com.onlineexam.app",
-    "productName": "Online Exam",
+    "productName": "peoplecert",
     "asar": true,
     "directories": {
       "output": "dist-electron"
@@ -31,7 +28,8 @@
       "!node_modules/.cache/**"
     ],
     "win": {
-      "target": "nsis:x64"
+      "target": "nsis:x64",
+      "icon": "build/icon.ico"
     }
   },
   "dependencies": {
@@ -49,8 +47,10 @@
     "lucide-react": "^0.553.0",
     "macaddress": "^0.5.3",
     "peerjs": "^1.5.5",
+    "quill": "^2.0.3",
     "react-router-dom": "^7.9.5",
     "socket.io-client": "^4.8.1",
+    "tinymce": "^8.3.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

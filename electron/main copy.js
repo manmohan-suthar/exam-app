@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const macaddress = require("macaddress");
 const os = require("os");
@@ -6,12 +6,9 @@ const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
 
 (async () => {
-  const { default: Store } = await import("electron-store");
+  const { default: Store } = await import('electron-store');
   const store = new Store();
 
-  const isDev = !app.isPackaged;
-
-  // ✅ Device Fingerprint
   async function getFingerprint() {
     try {
       const mac = await macaddress.one();
@@ -37,45 +34,45 @@ const fs = require("fs");
     }
   }
 
-  // ✅ Create Window
   function createWindow() {
     const win = new BrowserWindow({
       width: 1000,
       height: 700,
-      autoHideMenuBar: true, // ✅ Hide menu permanently
       webPreferences: {
-        preload: path.join(__dirname, "preload.js"),
+        preload: path.join(__dirname, "preload.js"), // preload ab same folder me hai
         contextIsolation: true,
         nodeIntegration: false,
       },
     });
 
-    // ✅ REMOVE MENU (File / Edit / View / Developer)
-    win.setMenu(null);
-    Menu.setApplicationMenu(null);
+    // if (app.isPackaged) {
 
-    // ✅ Load app
-    if (isDev) {
-      win.loadURL("http://localhost:5173");
-      win.webContents.openDevTools(); // ONLY DEV
+    //   win.loadFile(path.join(__dirname, "../dist/index.html"));
+    // } else {
+    //   win.loadURL("http://localhost:5173");
+    //   win.webContents.openDevTools();
+    // }
+
+    // electron/main.js
+    if (app.isPackaged) {
+      // Option A: loadFile with hash (Electron supports this)
+      win.loadFile(path.join(__dirname, '../dist/index.html'), { hash: '/' });
     } else {
-      win.loadFile(path.join(__dirname, "../dist/index.html"), {
-        hash: "/",
-      });
+      win.loadURL('http://localhost:5173');
+      win.webContents.openDevTools();
     }
 
-    // ✅ Send fingerprint to renderer
+
     win.webContents.on("did-finish-load", async () => {
       try {
         const fingerprint = await getFingerprint();
         win.webContents.send("fingerprint", fingerprint);
       } catch (err) {
-        console.error("Fingerprint send error:", err);
+        console.error("Fingerprint Error (main process):", err);
       }
     });
   }
 
-  // ✅ IPC HANDLERS
   ipcMain.handle("get-fingerprint", async () => {
     return await getFingerprint();
   });
@@ -92,20 +89,6 @@ const fs = require("fs");
     store.delete(key);
   });
 
-  // ✅ Disable DevTools shortcut (Ctrl + Shift + I)
-  app.on("browser-window-created", (_, window) => {
-    window.webContents.on("before-input-event", (event, input) => {
-      if (
-        input.control &&
-        input.shift &&
-        input.key.toLowerCase() === "i"
-      ) {
-        event.preventDefault();
-      }
-    });
-  });
-
-  // ✅ App lifecycle
   app.whenReady().then(createWindow);
 
   app.on("window-all-closed", () => {
@@ -113,8 +96,6 @@ const fs = require("fs");
   });
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 })();

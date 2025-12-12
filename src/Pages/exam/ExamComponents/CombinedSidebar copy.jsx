@@ -9,7 +9,7 @@ const CombinedSidebar = ({ activeModule, onModuleChange, activePart, onPartChang
       </aside>
     );
   }
-// console.log(activeModule, activePart);
+
 
   const modules = [...modulesData].sort((a, b) => {
     const getPriority = (key) => {

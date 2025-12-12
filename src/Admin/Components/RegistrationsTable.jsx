@@ -62,7 +62,7 @@ const RegistrationsTable = ({ registrations, updateRegistrationStatus }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg  w-[75vw] max-w-7xl h-[500px] flex flex-col" role="table" aria-label="PC Registrations Table">
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden w-full max-w-7xl h-[500px] flex flex-col" role="table" aria-label="PC Registrations Table">
       <div className="p-6 border-b border-slate-200 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold text-slate-800">PC Registrations</h3>

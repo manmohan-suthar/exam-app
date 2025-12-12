@@ -23,11 +23,19 @@ const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
 
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+   
+
+
+    { id: 'students', label: 'Students', icon: Users },
+    { id: 'set-exam', label: 'Set Exam', icon: Calendar },
+    { id: 'results', label: 'Results', icon: BarChart3 },
     { id: 'admin-login-student', label: 'Admin Login Student', icon: UserCheck },
     { id: 'listening-papers', label: 'Listening Papers', icon: FileAudio },
     { id: 'reading-papers', label: 'Reading Papers', icon: Notebook},
-    { id: 'speaking-papers', label: 'Speaking Papers', icon: BookOpen },
+    // { id: 'speaking-papers', label: 'Speaking Papers', icon: BookOpen },
     { id: 'writing-papers', label: 'Writing Papers', icon: PenTool },
+    { id: 'agents', label: 'Agents', icon: Shield },
+    { id: 'registrations', label: 'Registrations', icon: Monitor },
     {
       id: 'instructions',
       label: 'Instructions',
@@ -39,11 +47,6 @@ const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
         // { id: 'writing-instructions', label: 'Writing', icon: PenTool }
       ]
     },
-    { id: 'registrations', label: 'Registrations', icon: Monitor },
-    { id: 'students', label: 'Students', icon: Users },
-    { id: 'agents', label: 'Agents', icon: Shield },
-    { id: 'set-exam', label: 'Set Exam', icon: Calendar },
-    { id: 'results', label: 'Results', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

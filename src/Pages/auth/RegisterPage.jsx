@@ -81,7 +81,7 @@ const RegisterPage = () => {
       </div>
 
       {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+      <div className="w-full h-[96vh] overflow-auto lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">PC Registration</h1>
@@ -172,17 +172,16 @@ const RegisterPage = () => {
 
           <div className="text-center">
             <p className="text-gray-600">
-              Have an account?{' '}
-              {/* Either a button using navigate... */}
+              {/* Have an account?{' '} */}
+
               <button
                 type="button"
                 className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/')}
               >
-                Login
+                Back 
               </button>
-              {/* ...or a Link (also fine): */}
-              {/* <Link to="/login" className="text-blue-600 hover:text-blue-800 font-medium transition-colors">Login</Link> */}
+              
             </p>
           </div>
         </div>

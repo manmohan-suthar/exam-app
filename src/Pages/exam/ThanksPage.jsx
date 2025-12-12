@@ -7,9 +7,20 @@ const ThanksPage = () => {
   const [student, setStudent] = useState(null);
 
   useEffect(() => {
+    // Remove only exam-related keys
+    localStorage.removeItem("examAssignment");
+    localStorage.removeItem("assignments");
+    localStorage.removeItem("registration");
+    localStorage.removeItem("completedPartsListening");
+    localStorage.removeItem("readingCompleted");
+    localStorage.removeItem("combinedExams");
+    localStorage.removeItem("combinedAssignments");
+  
+    // Keep student data
     const s = localStorage.getItem("student");
     if (s) setStudent(JSON.parse(s));
   }, []);
+  
 
   if (!student) return null;
 

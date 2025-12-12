@@ -16,16 +16,16 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
   const hasRefreshedRef = useRef(false);
 
   const navigate = useNavigate();
-  console.log(timeLeft);
+
 
   // One-time page refresh on load
-  useEffect(() => {
-    if (!hasRefreshedRef.current && !sessionStorage.getItem('readingPlaygroundRefreshed')) {
-      hasRefreshedRef.current = true;
-      sessionStorage.setItem('readingPlaygroundRefreshed', 'true');
-      window.location.reload();
-    }
-  }, []);
+  // useEffect(() => {
+  //   if (!hasRefreshedRef.current && !sessionStorage.getItem('readingPlaygroundRefreshed')) {
+  //     hasRefreshedRef.current = true;
+  //     sessionStorage.setItem('readingPlaygroundRefreshed', 'true');
+  //     window.location.reload();
+  //   }
+  // }, []);
 
   // Fetch paper and assignment
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
-      console.log("Student connected to Socket.IO");
+   
       newSocket.emit("join", { room: test._id, role: "student" });
     });
 
@@ -176,7 +176,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
         transformedAnswers[key] = val;
       });
 
-      console.log("Submitting transformedAnswers:", transformedAnswers);
+
 
       const payload = {
         studentId: student._id || student.student_id,
@@ -219,11 +219,11 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
         }
       } else {
         const error = await response.json();
-        alert(`Submission failed: ${error.error}`);
+        // alert(`Submission failed: ${error.error}`);
       }
     } catch (error) {
       console.error("Submit error:", error);
-      alert("An error occurred while submitting the exam");
+      // alert("An error occurred while submitting the exam");
     } finally {
       setSubmitting(false);
     }
@@ -308,7 +308,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
   };
 
   const renderType2 = (q) => {
-    console.log("Rendering Type 2 question:", q);
+
     const questionKey = `type2-${q.questionNumber || q.order + 1}`;
     return (
       <div className="p-4">
@@ -484,53 +484,53 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
           {q.matchingQuestions?.map((mq) => {
             return (
               <div
-                key={mq.questionNumber}
-                className="p-3 border border-gray-300 rounded-lg bg-gray-50 last:mb-0"
-              >
-                <p className="text-gray-700 text-[13px]  mb-2 leading-relaxed">
-                  {mq.questionNumber}. {mq.question}
-                </p>
-
-                <div
-                  className={`p-2 ${
-                    answers[`type4-${mq.questionNumber}`]
-                      ? "bg-[#FEF2E7] border-1 rounded border-[#e94b1b]"
-                      : "border-gray-400"
-                  }`}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const textLetter = e.dataTransfer.getData("text");
-                    setAnswers((prev) => ({
-                      ...prev,
-                      [`type4-${mq.questionNumber}`]: textLetter,
-                    }));
-                  }}
-                  onDragOver={(e) => e.preventDefault()}
-                >
-                  {answers[`type4-${mq.questionNumber}`] ? (
-                    <div className="flex text-[13px] items-center justify-between w-full">
-                      <span>Text {answers[`type4-${mq.questionNumber}`]}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAnswers((prev) => {
-                            const newAnswers = { ...prev };
-                            delete newAnswers[`type4-${mq.questionNumber}`];
-                            return newAnswers;
-                          });
-                        }}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : (
-                   <div className="text-gray-500 text-center text-[11px]">
-                    Drop Here
-                   </div>
-                  )}
+              key={mq.questionNumber}
+              className={`p-3 rounded-lg last:mb-0 transition ${
+                answers[`type4-${mq.questionNumber}`]
+                  ? "bg-[#FEF2E7] border-2 border-[#e94b1b]"
+                  : "bg-gray-50 border-2 border-dashed border-gray-300 hover:bg-[#FFF5EE]"
+              }`}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const textLetter = e.dataTransfer.getData("text");
+            
+                if (!textLetter) return;
+            
+                setAnswers((prev) => ({
+                  ...prev,
+                  [`type4-${mq.questionNumber}`]: textLetter,
+                }));
+              }}
+            >
+              {/* QUESTION TEXT */}
+              <p className="text-gray-700 text-[13px] mb-2 leading-relaxed">
+                {mq.questionNumber}. {mq.question}
+              </p>
+            
+              {/* SELECTED ANSWER DISPLAY */}
+              {answers[`type4-${mq.questionNumber}`] && (
+                <div className="mt-2 flex items-center justify-between bg-white p-2 rounded border">
+                  <span className="text-[13px]">
+                    Text {answers[`type4-${mq.questionNumber}`]}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAnswers((prev) => {
+                        const newAnswers = { ...prev };
+                        delete newAnswers[`type4-${mq.questionNumber}`];
+                        return newAnswers;
+                      });
+                    }}
+                    className="text-red-500 hover:text-red-700 font-bold"
+                  >
+                    ×
+                  </button>
                 </div>
-              </div>
+              )}
+            </div>
+            
             );
           })}
         </div>

@@ -9,6 +9,46 @@ const LoadingPage = () => {
   const [student, setStudent] = useState(null);
   const [fingerprint, setFingerprint] = useState(null);
   const [error, setError] = useState(null);
+  const pollRefs = React.useRef({}); 
+  
+  useEffect(() => {
+    const handleHotkeys = (e) => {
+      const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+      if (!ctrlOrCmd || !e.shiftKey) return;
+  
+      // helper — stop polling before navigate
+      const stopAllPolling = () => {
+        if (pollRefs.current?.main) clearInterval(pollRefs.current.main);
+        if (pollRefs.current?.poll) clearInterval(pollRefs.current.poll);
+        pollRefs.current = {};
+        console.log('✅ All polling stopped before navigation');
+      };
+  
+      // Ctrl/Cmd + Shift + R  →  /register
+      if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        e.stopPropagation();
+        stopAllPolling();
+        navigate('/register');
+      }
+  
+      // Ctrl/Cmd + Shift + A  →  /admin-login
+      if (e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        e.stopPropagation();
+        stopAllPolling();
+        navigate('/admin-login');
+      }
+    };
+  
+    window.addEventListener('keydown', handleHotkeys, true);
+    return () => window.removeEventListener('keydown', handleHotkeys, true);
+  }, [navigate]);
+  
+  
+  
+
 
   useEffect(() => {
     const fetchFingerprint = async () => {
@@ -58,23 +98,58 @@ const LoadingPage = () => {
             // Start polling for exam status
             pollInterval = setInterval(async () => {
               try {
-                const statusResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/check-exam-status`, {
-                  params: { macAddress, studentId }
-                });
-
-                if (statusResponse.data.examStarted) {
-                  localStorage.setItem('examAssignment', JSON.stringify(statusResponse.data.assignment));
-                  if (window.electronAPI) {
-                    await window.electronAPI.store.set('examAssignment', statusResponse.data.assignment);
-                  }
+                // 1. Fetch all assignments for this student on this PC
+                const statusResponse = await axios.get(
+                  `${import.meta.env.VITE_API_BASE_URL}/admin/check-exam-status`,
+                  { params: { macAddress, studentId } }
+                );
+           
+            
+                // 2. Check if all assignments completed
+                if (statusResponse.data.allCompleted) {
+                  setMessage("All exams are completed. Contact administrator.");
                   clearInterval(pollInterval);
-                  navigate('/dashboard');
+                  return;
                 }
+            
+                const { examStarted, assignment } = statusResponse.data;
+            
+                // 3. If no active assignment, wait
+                if (!assignment) {
+                  setMessage("Waiting for assignment...");
+                  return;
+                }
+            
+                // 4. If assignment already completed, skip
+                if (assignment.status === "completed") {
+                  setMessage("Exam already completed. Please contact administrator.");
+                  return;
+                }
+            
+                // 5. If assignment not started, start it dynamically
+                if (!examStarted) {
+                  // Start the exam automatically
+                  await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/start-exam`, {
+                    assignmentId: assignment._id
+                  });
+                }
+            
+                // 6. Save and navigate to dashboard
+                localStorage.setItem("examAssignment", JSON.stringify(assignment));
+                if (window.electronAPI) {
+                  await window.electronAPI.store.set("examAssignment", assignment);
+                }
+            
+                navigate("/dashboard");
+            
               } catch (error) {
-                console.error('Error checking exam status:', error);
-                setMessage('Error checking exam status. Retrying...');
+                console.error("Error checking exam status:", error);
+                setMessage("Error checking exam status. Retrying...");
               }
-            }, 5000); // Poll every 5 seconds
+            }, 5000);
+            
+            
+             // Poll every 5 seconds
           } else {
             setMessage('Student not found. Waiting for assignment...');
           }
@@ -88,15 +163,16 @@ const LoadingPage = () => {
     };
 
     // Check every 5 seconds
-    const checkInterval = setInterval(checkForAssignment, 5000);
+    pollRefs.current.main = setInterval(checkForAssignment, 5000);
 
     // Initial check
     checkForAssignment();
 
     // Cleanup on unmount
     return () => {
-      clearInterval(checkInterval);
-      if (pollInterval) clearInterval(pollInterval);
+      if (pollRefs.current?.main) clearInterval(pollRefs.current.main);
+      if (pollRefs.current?.poll) clearInterval(pollRefs.current.poll);
+      pollRefs.current = {};
     };
   }, [fingerprint, navigate]);
 
@@ -114,14 +190,7 @@ const LoadingPage = () => {
         {message}
       </Typography>
 
-      <Button
-        variant="outlined"
-        color="primary"
-        sx={{ mt: 4 }}
-        onClick={() => navigate('/register')}
-      >
-        Register Device
-      </Button>
+
     </Box>
   );
 };

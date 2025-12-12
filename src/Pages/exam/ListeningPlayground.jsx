@@ -169,20 +169,17 @@ export default function ListeningPlaygroundUI({
     };
     const onEnded = () => {
       setIsPlaying(false);
+    
       if (paper && currentPart < paper.sections.length - 1) {
-        if (onCompletedPartsChange) {
-          onCompletedPartsChange((prev) => [...prev, currentPart]);
-        }
-        if (onPartChange) {
-          onPartChange(currentPart + 1);
-        } else {
-          setInternalCurrentPart((s) => s + 1);
-        }
+        // ✅ tell parent: this part is completed
+        onCompletedPartsChange?.((prev) =>
+          prev.includes(currentPart) ? prev : [...prev, currentPart]
+        );
       } else {
-        // Exam completed
         setExamCompleted(true);
       }
     };
+    
 
     a.addEventListener("timeupdate", onTime);
     a.addEventListener("loadedmetadata", onLoaded);

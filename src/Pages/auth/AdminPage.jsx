@@ -65,7 +65,7 @@ const AdminPage = () => {
       </div>
 
       {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+      <div className="w-full h-[96vh] overflow-y-scroll lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Login</h1>

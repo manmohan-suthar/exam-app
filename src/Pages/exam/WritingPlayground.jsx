@@ -51,7 +51,7 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
         
           const totalTime = writingTiming * 60 + safeBonus;
           setTimeLeft(totalTime);
-          console.log("Total time:", totalTime);
+          
         
           // Mark as applied for this session (but DO NOT remove from localStorage here)
           if (!alreadyApplied && safeBonus > 0) {
@@ -106,7 +106,7 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
     setAnswers((prev) => ({ ...prev, [taskNumber]: answer }));
   };
 
-  console.log(timeLeft);
+
 
   // History management
   const addToHistory = (newText) => {

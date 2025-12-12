@@ -8,7 +8,10 @@ const ListeningPapersBuilder = () => {
   const [currentPaper, setCurrentPaper] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-
+  const audioInputRef = useRef(null);
+  // NEW: per-section upload state
+const [uploading, setUploading] = useState({});   // { [sectionIndex]: true/false }
+const [progress, setProgress] = useState({});  
 
   const [activeTab, setActiveTab] = useState('list'); // 'list', 'builder', or 'preview'
   const [currentSection, setCurrentSection] = useState(0);
@@ -25,6 +28,7 @@ const ListeningPapersBuilder = () => {
       console.error('Error fetching papers:', error);
     }
   };
+
 
   const createNewPaper = () => {
     setCurrentPaper({
@@ -320,22 +324,37 @@ const ListeningPapersBuilder = () => {
     }
   }, []);
   
-
   const handleAudioUpload = async (event, sectionIndex) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (!file) return;
   
     const formData = new FormData();
     formData.append("audio", file);
     formData.append("sectionIndex", sectionIndex + 1);
   
+    // start UI state
+    setUploading(prev => ({ ...prev, [sectionIndex]: true }));
+    setProgress(prev => ({ ...prev, [sectionIndex]: 0 }));
+  
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper._id}/upload-audio`,
-        formData
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (e) => {
+            if (!e.total) {
+              // kuch servers total nahi bhejte — is case me sirf loader dikhao
+              setProgress(prev => ({ ...prev, [sectionIndex]: null }));
+              return;
+            }
+            const pct = Math.round((e.loaded * 100) / e.total);
+            setProgress(prev => ({ ...prev, [sectionIndex]: pct }));
+          }
+        }
       );
   
-      // ✅ REAL-TIME UPDATE
+      // ✅ Update section audio
       setCurrentPaper(prev => ({
         ...prev,
         sections: prev.sections.map((section, idx) =>
@@ -343,17 +362,33 @@ const ListeningPapersBuilder = () => {
             ? {
                 ...section,
                 audioFile: res.data.audioFile,
-                audioUrl: res.data.audioUrl // ✅ here
+                audioUrl: res.data.audioUrl
               }
             : section
         )
       }));
   
-      alert("Audio uploaded");
+      // input clear
+      event.target.value = "";
+  
+      alert("Audio uploaded successfully");
     } catch (err) {
       console.error(err);
+      alert(err?.response?.data?.error || "Audio upload failed");
+    } finally {
+      setUploading(prev => ({ ...prev, [sectionIndex]: false }));
+      // progress ko chhod bhi sakte ho, ya success par 100 set karke 1-2s baad clear karna ho to:
+      setTimeout(() => {
+        setProgress(prev => {
+          const copy = { ...prev };
+          delete copy[sectionIndex];
+          return copy;
+        });
+      }, 1200);
     }
   };
+  
+  
   
   
   
@@ -644,6 +679,7 @@ const ListeningPapersBuilder = () => {
           {currentPaper?._id ? 'Edit Paper' : 'Create New Paper'}
         </h2>
         <div className="flex gap-2">
+
           <button
             onClick={() => setActiveTab('list')}
             className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg"
@@ -812,13 +848,38 @@ const ListeningPapersBuilder = () => {
                         {!currentPaper._id ? (
                           <div className="text-xs text-slate-500 mb-2">Save the paper first to upload audio</div>
                         ) : null}
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={(e) => handleAudioUpload(e, currentSection)}
-                          disabled={!currentPaper._id}
-                          className={`block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${!currentPaper._id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        />
+<input
+  type="file"
+  ref={audioInputRef}
+  accept="audio/*"
+  onChange={(e) => handleAudioUpload(e, currentSection)}
+  disabled={!currentPaper._id || uploading[currentSection]}
+  className={`block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+    !currentPaper._id ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
+/>
+
+{/* NEW: progress / loader */}
+{uploading[currentSection] && (
+  <div className="mt-3">
+    {typeof progress[currentSection] === 'number' ? (
+      <>
+        <div className="h-2 w-full bg-slate-200 rounded">
+          <div
+            className="h-2 bg-teal-600 rounded transition-all"
+            style={{ width: `${progress[currentSection]}%` }}
+          />
+        </div>
+        <div className="text-xs text-slate-600 mt-1">
+          Uploading… {progress[currentSection]}%
+        </div>
+      </>
+    ) : (
+      <div className="text-xs text-slate-600">Uploading…</div>
+    )}
+  </div>
+)}
+
                         {currentSectionData.audioFile && (
                           <div className="text-xs text-green-600 mt-1">Audio file uploaded</div>
                         )}
@@ -833,7 +894,7 @@ const ListeningPapersBuilder = () => {
                           placeholder="https://example.com/audio.mp3"
                         />
                       </div>
-                      <div>
+                      {/* <div>
                         <label className="block text-sm text-slate-600 mb-1">Start Time</label>
                         <input
                           type="text"
@@ -842,7 +903,7 @@ const ListeningPapersBuilder = () => {
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                           placeholder="00:00"
                         />
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </div>
@@ -992,7 +1053,7 @@ const QuestionCard = ({ question, index, onUpdate, onRemove }) => {
               </div>
             )}
 
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Audio Timestamp (Optional)
               </label>
@@ -1003,7 +1064,7 @@ const QuestionCard = ({ question, index, onUpdate, onRemove }) => {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 placeholder="e.g., 00:50 to 01:20"
               />
-            </div>
+            </div> */}
 
             {question.questionType === 'multiple-choice' && (
               <>

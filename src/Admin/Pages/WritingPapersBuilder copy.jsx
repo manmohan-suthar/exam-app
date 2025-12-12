@@ -22,10 +22,40 @@ const WritingPapersBuilder = () => {
 
   const editorRef = useRef(null);
   const quillInstance = useRef(null);
- 
-
   
+  useEffect(() => {
+    if (editorRef.current && !quillInstance.current) {
+      quillInstance.current = new Quill(editorRef.current, {
+        theme: "snow",
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ["bold", "italic", "underline"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            ["link", "image"],
+          ],
+        },
+      });
+    }
+  }, []);
+  
+  // Setup Quill text-change handler
+  useEffect(() => {
+    if (!quillInstance.current) return;
 
+    const quill = quillInstance.current;
+    const handler = () => {
+      if (isSettingContent.current) return; // skip update during setText/pasteHTML
+      const html = quill.root.innerHTML;
+      if (html !== content) {
+        setContent(html);
+        updateTask(currentTask, { prompt: html });
+      }
+    };
+
+    quill.on("text-change", handler);
+    return () => quill.off("text-change", handler);
+  }, [currentTask, content]);
 
   const ImageHandler = async () => {
     const input = document.createElement("input");
@@ -34,39 +64,28 @@ const WritingPapersBuilder = () => {
     input.click();
   
     input.onchange = async () => {
-      const file = input.files?.[0];
+      const file = input.files[0];
       if (!file) return;
   
       const formData = new FormData();
       formData.append("image", file);
-      // optional: group uploads under a folder
-      formData.append("prefix", "student-editor");
+      formData.append("taskNumber", currentTask);
   
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/admin/uploads/image`,
-          { method: "POST", body: formData }
-        );
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers/${currentPaper._id}/upload-image`,
+        { method: "POST", body: formData }
+      );
   
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Upload failed");
+      const data = await res.json();
   
-        const imageUrl = data?.image?.url;
-        if (!imageUrl) throw new Error("No image URL returned");
-  
-        const quill = quillInstance.current;
-        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
-        quill.insertEmbed(range.index, "image", imageUrl, "user");
-        quill.setSelection(range.index + 1);
-      } catch (err) {
-        console.error("Image upload failed:", err);
-        // TODO: show a toast/snackbar
-      } finally {
-        input.value = "";
-      }
+      const range = quillInstance.current.getSelection();
+      quillInstance.current.insertEmbed(
+        range.index,
+        "image",
+        `${import.meta.env.VITE_API_BASE_URL}/${data.image.path}`
+      );
     };
   };
-  
   
 
   // Update content when task changes
@@ -193,7 +212,6 @@ const WritingPapersBuilder = () => {
     setCurrentTask(1);
     setIsEditing(true);
     setActiveTab('builder');
-    
   };
 
   const savePaper = async () => {
@@ -201,144 +219,98 @@ const WritingPapersBuilder = () => {
       alert('Please enter a title for the paper');
       return;
     }
-  
-    const quill = quillInstance.current;
-    const latestHtml = quill ? quill.root.innerHTML : '';
-  
-    // Build a fresh paper object with the latest prompt merged in,
-    // without relying on the async setState.
-    const updatedTasks = (currentPaper.tasks || []).map(t =>
-      t.taskNumber === currentTask ? { ...t, prompt: latestHtml } : t
-    );
-  
-    const admin = JSON.parse(localStorage.getItem('admin'));
-  
-    const paperData = {
-      ...currentPaper,
-      tasks: updatedTasks,
-      createdBy: admin?.admin,
-    };
-  
+
     setLoading(true);
     try {
+      const admin = JSON.parse(localStorage.getItem('admin'));
+
+      const paperData = {
+        ...currentPaper,
+        createdBy: admin.admin
+      };
+
       if (currentPaper._id) {
-        await axios.put(
-          `${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers/${currentPaper._id}`,
-          paperData
-        );
+        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers/${currentPaper._id}`, paperData);
       } else {
-        const res = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers`,
-          paperData
-        );
-        setCurrentPaper(res.data.paper);
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/writing-papers`, paperData);
+        setCurrentPaper(response.data.paper);
       }
-  
+
       await fetchPapers();
       alert('Paper saved successfully!');
-    } catch (err) {
-      console.error('Error saving paper:', err);
+    } catch (error) {
+      console.error('Error saving paper:', error);
       alert('Error saving paper');
     } finally {
       setLoading(false);
     }
   };
-  
-// store the onChange handler so we can detach it safely
-const textChangeHandlerRef = useRef(null);
 
-useEffect(() => {
-  if (activeTab !== 'builder') return;
-  if (!editorRef.current) return;
+  useEffect(() => {
+    if (editorRef.current && !quillInstance.current) {
+      quillInstance.current = new Quill(editorRef.current, {
+        theme: "snow",
+        placeholder: "Write task prompt here...",
+        modules: {
+          toolbar: {
+            container: [
+              [{ header: [1, 2, 3, false] }],
+              ["bold", "italic", "underline"],
+              [{ list: "ordered" }, { list: "bullet" }],
+              ["link", "image"]
+            ],
+            handlers: {
+              image: ImageHandler // Image handler bind
+            }
+          }
+        }
+      });
 
-  // If we already have an instance for this container, don't re-init
-  if (quillInstance.current && quillInstance.current.container === editorRef.current) {
-    return;
-  }
-
-  // If instance exists but bound to another container, clean it up
-  if (quillInstance.current && quillInstance.current.container !== editorRef.current) {
-    if (textChangeHandlerRef.current) {
-      quillInstance.current.off('text-change', textChangeHandlerRef.current);
+      // Load initial content if exists
+      if (currentPaper?.tasks?.length > 0) {
+        const currentTaskData = currentPaper.tasks.find(t => t.taskNumber === currentTask);
+        if (currentTaskData?.prompt) {
+          quillInstance.current.clipboard.dangerouslyPasteHTML(currentTaskData.prompt);
+        }
+      }
     }
-    quillInstance.current = null;
-  }
-
-  const q = new Quill(editorRef.current, {
-    theme: 'snow',
-    placeholder: 'Write task prompt here...',
-    modules: {
-      toolbar: {
-        container: [
-          [{ header: [1, 2, 3, false] }],
-          ['bold', 'italic', 'underline'],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          ['link', 'image'],
-        ],
-        handlers: {
-          image: ImageHandler,
-        },
-      },
-    },
-  });
-
-  // attach one text-change handler
-  const onChange = () => {
-    if (isSettingContent.current) return;
-    const html = q.root.innerHTML;
-    setContent(html);
-    updateTask(currentTask, { prompt: html });
-  };
-  q.on('text-change', onChange);
-  textChangeHandlerRef.current = onChange;
-
-  quillInstance.current = q;
-
-  // load current task content once on init
-  const currentTaskData = (currentPaper?.tasks || []).find(t => t.taskNumber === currentTask);
-  isSettingContent.current = true;
-  q.clipboard.dangerouslyPasteHTML(currentTaskData?.prompt || '');
-  isSettingContent.current = false;
-
-  return () => {
-    // only detach events; keeping the instance is fine until container unmounts
-    if (q && textChangeHandlerRef.current) {
-      q.off('text-change', textChangeHandlerRef.current);
-      textChangeHandlerRef.current = null;
-    }
-  };
-  // IMPORTANT: only re-run when the container can actually change
-}, [activeTab]); // ⬅️ removed currentPaper & currentTask here
-
-  
+  }, [currentPaper, currentTask]);
 
   
   const isSettingContent = useRef(false);
 
-
+  useEffect(() => {
+    if (!quillInstance.current) return;
   
+    const currentTaskData = currentPaper?.tasks?.find(t => t.taskNumber === currentTask);
+    if (currentTaskData?.prompt) {
+      isSettingContent.current = true; // prevent triggering onChange
+      quillInstance.current.clipboard.dangerouslyPasteHTML(currentTaskData.prompt);
+      isSettingContent.current = false;
+    } else {
+      isSettingContent.current = true;
+      quillInstance.current.setText('');
+      isSettingContent.current = false;
+    }
+  }, [currentTask, currentPaper]);
   
   // Quill text-change
   useEffect(() => {
     if (!quillInstance.current) return;
-  
+
     const quill = quillInstance.current;
     const handler = () => {
-      if (isSettingContent.current) return;
+      if (isSettingContent.current) return; // skip update during setText/pasteHTML
       const html = quill.root.innerHTML;
-  
-      // 🔒 Avoid redundant state updates
       if (html !== content) {
         setContent(html);
         updateTask(currentTask, { prompt: html });
       }
     };
-  
+
     quill.on("text-change", handler);
     return () => quill.off("text-change", handler);
-  }, [currentTask, content]); // include content for the comparison
-  
-  
+  }, [currentTask, content]);
   
   
 
@@ -797,12 +769,9 @@ useEffect(() => {
 
                   <div className="border border-slate-300 rounded-lg">
                   <div
-  key={`${currentPaper?._id || 'new'}-${currentTask}`}
   ref={editorRef}
-  style={{ height: '400px', background: 'white' }}
+  style={{ height: "400px", background: "white" }}
 />
-
-
 
 
 

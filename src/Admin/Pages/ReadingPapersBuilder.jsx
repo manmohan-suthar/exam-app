@@ -419,36 +419,9 @@ const ReadingPapersBuilder = () => {
       case 'type5_reading_comprehension':
         newQuestion = {
           type: 'type5_reading_comprehension',
-          question: 'The picture gets even more complicated, however, once we take into account the \'dark matter\' of intelligence. In the intelligence field, there is a distinction between \'fluid\' intelligence (abstract reasoning and pattern detection) and \'crystallized\' intelligence (vocabulary and general knowledge). But domain-specific knowledge – the dark matter of intelligence – is not identical to either fluid or crystallized intelligence. Most IQ tests, which were only ever designed for testing schoolchildren, do not include the rich depth of knowledge acquired after extensive immersion in a field. So, while it is true that, when measured by the standards of youth, middle-aged adults might not be as \'intelligent\' as young adults, once dark matter is taken into account, middle-aged adults might well be up to par.\n\nProfessor Phillip Ackerman from the Georgia Institute of Technology wonders whether we should be judging adult intelligence by the same standard we judge childhood intelligence. To dive deeper into this question, Ackerman administered a wide variety of domain-specific knowledge tests to 288 adults who were educated to college level and between the ages of 21 and 62. Domains included art, music, world literature, biology, physics, psychology, technology, law, astronomy and electronics. Ackerman found that in general, middle-aged adults are more knowledgeable in many domains compared with younger adults. As for the implications of this finding, his paper states: \'Many intellectually demanding tasks in the real world cannot be accomplished without a vast repertoire of declarative knowledge and procedural skills.\' Using an example from academia and how several years of intense study and empirical research experience are required before even the best college student could be expected to deliver a flawless doctoral thesis defense, he argues: \'knowledge does not compensate for a declining adult intelligence; it is intelligence!\'\n\nThere was an important exception to Ackerman\'s finding, however. All three science-related tests were negatively associated with age. Tellingly, these three tests were most strongly correlated with fluid intelligence. Nevertheless, on the whole, these results should be considered good news for older adults. Unless you are trying to win the Nobel Prize for Physics at a very old age, there are a lot of domains of knowledge that you can continue to learn in throughout your life. What is more, Ackerman found that certain measures of personality, such as intellectual curiosity, were related to domain-specific knowledge above and beyond the effects of standard measures of intelligence.\n\nAnd if you do want to maintain your fluid intelligence as long as possible, there is recent research suggesting that having a greater purpose in life can help protect against cognitive decline among older adults. Professor Giyeon Kim and her colleagues at Chung-Ang University in the Republic of Korea looked at various aspects of purpose, including: whether one cares about the future and whether one has a good sense of what one wishes to accomplish in the future. They found that purpose in life actedas a protective factor against cognitive decline and have argued that it could be used as a treatment technique for cognitive decline in clinical settings.',
+          question: '',
           instructions: 'Read the article about intelligence and ageing and answer the questions.',
-          comprehensionQuestions: [
-            {
-              questionNumber: 1,
-              question: 'According to the article, what is the main difference between fluid and crystallized intelligence?',
-              questionType: 'multiple_choice',
-              options: [
-                { letter: 'A', text: 'Fluid intelligence is more important for adults' },
-                { letter: 'B', text: 'Crystallized intelligence declines with age' },
-                { letter: 'C', text: 'Fluid intelligence involves abstract reasoning, crystallized involves knowledge' },
-                { letter: 'D', text: 'They are the same thing' }
-              ],
-              correctAnswer: 'C',
-              maxWords: 3
-            },
-            {
-              questionNumber: 2,
-              question: 'What did Professor Ackerman find about middle-aged adults?',
-              questionType: 'multiple_choice',
-              options: [
-                { letter: 'A', text: 'They are less knowledgeable in all domains' },
-                { letter: 'B', text: 'They are more knowledgeable in many domains' },
-                { letter: 'C', text: 'They perform worse on science tests' },
-                { letter: 'D', text: 'They have declining fluid intelligence' }
-              ],
-              correctAnswer: 'B',
-              maxWords: 3
-            }
-          ],
+          comprehensionQuestions: [],
           unitNumber: currentUnit,
           order: questions.length
         };
@@ -865,7 +838,7 @@ const ReadingPapersBuilder = () => {
                   placeholder="Enter paper description"
                 />
               </div>
-
+{/* 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Estimated Time (minutes)
@@ -878,7 +851,7 @@ const ReadingPapersBuilder = () => {
                   min="1"
                   max="180"
                 />
-              </div>
+              </div> */}
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">

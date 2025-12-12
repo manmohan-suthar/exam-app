@@ -188,7 +188,7 @@ const SetExam = () => {
         is_visible: formData.is_visible
       };
 
-      console.log('Creating assignment with agent:', formData.agent, assignmentData);
+
 
       await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments`, assignmentData);
 

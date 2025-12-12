@@ -33,8 +33,7 @@ const CandidateDetailsVerification = () => {
         }
       }
 
-      console.log('CandidateDetailsVerification: studentData:', studentData);
-      console.log('CandidateDetailsVerification: registrationData:', registrationData);
+     
 
       if (studentData) setStudent(typeof studentData === 'string' ? JSON.parse(studentData) : studentData);
       if (registrationData) setRegistration(typeof registrationData === 'string' ? JSON.parse(registrationData) : registrationData);
@@ -47,11 +46,11 @@ const CandidateDetailsVerification = () => {
     if (student) {
       // Fetch assignments
       const fetchAssignments = async () => {
-        console.log('CandidateDetailsVerification: Fetching assignments for student_id:', student.student_id);
+       
         setError(null);
         try {
           const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments?student_id=${student.student_id}`);
-          console.log('CandidateDetailsVerification: Assignments response status:', response.status);
+        
           if (!response.ok) {
             const errorText = await response.text();
             console.error('CandidateDetailsVerification: Failed to fetch assignments, status:', response.status, 'text:', errorText);
@@ -59,7 +58,7 @@ const CandidateDetailsVerification = () => {
             throw new Error('Failed to fetch assignments');
           }
           const data = await response.json();
-          console.log('CandidateDetailsVerification: Fetched assignments:', data.assignments.length, data.assignments.map(a => ({ _id: a._id, exam_type: a.exam_type })));
+      
 
           setAssignments(data.assignments);
           localStorage.setItem("assignments", JSON.stringify(data.assignments));
@@ -169,7 +168,7 @@ const CandidateDetailsVerification = () => {
     );
   }
 
-  console.log('CandidateDetailsVerification: Render - startingExam:', startingExam, 'exams:', filteredTests.length);
+
 
   return (
 <div className="h-screen bg-[#F3F3F3] text-gray-900 p-5 flex flex-col">
