@@ -39,8 +39,12 @@ jobs:
 
       - name: Build & Publish Electron App
         env:
+<<<<<<< HEAD
           GH_TOKEN: ${{ secrets.GH_TOKEN }}       # PAT
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}   # force builder to use PAT
+=======
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}    # <-- use PAT, not GITHUB_TOKEN
+>>>>>>> 8b609d3 (build file)
         run: npx electron-builder --win nsis --publish always
 
       - name: Upload artifacts (optional)

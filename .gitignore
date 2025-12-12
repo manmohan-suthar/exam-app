@@ -10,7 +10,6 @@ dist-ssr/
 # Electron build output
 out/
 release/
-build/
 
 # Logs
 npm-debug.log*
