@@ -22,7 +22,8 @@
     "productName": "peoplecert",
     "asar": true,
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "build"
     },
     "files": [
       "dist/**",
@@ -31,10 +32,21 @@
     ],
     "artifactName": "${productName}-${version}-Setup.${ext}",
     "publish": [
-      { "provider": "github", "owner": "manmohan-suthar", "repo": "exam-app" }
+      {
+        "provider": "github",
+        "owner": "manmohan-suthar",
+        "repo": "exam-app",
+        "releaseType": "release",  
+        "vPrefixedTagName": true
+      }
     ],
     "win": {
-      "target": "nsis:x64",
+      "target": {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
       "icon": "build/icon.ico"
     },
     "nsis": {
