@@ -33,6 +33,7 @@ const ExamResults = lazy(() => import('./Pages/exam/ExamResults'));
 const LoadingPage = lazy(() => import('./Pages/LoadingPage'));
 const ExamPage = lazy(() => import('./Pages/ExamPage'));
 const ThanksPage = lazy(() => import('./Pages/exam/ThanksPage'));
+const UpdatePage = lazy(() => import('./Pages/auth/UpdatePage'));
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
           {/* <Route path="/" element={<LoginPage />} /> */}
           <Route path="/agent-login" element={<AgentLoginPage />} />
           <Route path="/admin-login" element={<AdminPage />} />
+          <Route path="/update-page" element={<UpdatePage/>} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/agent-dashboard" element={<AgentDashboard />} />

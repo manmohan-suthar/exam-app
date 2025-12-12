@@ -40,6 +40,13 @@ const LoadingPage = () => {
         stopAllPolling();
         navigate('/admin-login');
       }
+      // Ctrl/Cmd + Shift + A  →  /admin-login
+      if (e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        e.stopPropagation();
+        stopAllPolling();
+        navigate('/update-page');
+      }
     };
   
     window.addEventListener('keydown', handleHotkeys, true);

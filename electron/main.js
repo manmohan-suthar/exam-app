@@ -5,6 +5,14 @@ const os = require("os");
 const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
 
+// 🔔 Auto-update (GitHub Releases)
+const { autoUpdater } = require("electron-updater");
+
+// (Windows notifications & updater metadata)
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.onlineexam.app"); // appId == build.appId
+}
+
 (async () => {
   const { default: Store } = await import("electron-store");
   const store = new Store();
@@ -37,12 +45,14 @@ const fs = require("fs");
     }
   }
 
+  let win;
+
   // ✅ Create Window
   function createWindow() {
-    const win = new BrowserWindow({
+    win = new BrowserWindow({
       width: 1000,
       height: 700,
-      autoHideMenuBar: true, // ✅ Hide menu permanently
+      autoHideMenuBar: true,
       webPreferences: {
         preload: path.join(__dirname, "preload.js"),
         contextIsolation: true,
@@ -59,9 +69,7 @@ const fs = require("fs");
       win.loadURL("http://localhost:5173");
       win.webContents.openDevTools(); // ONLY DEV
     } else {
-      win.loadFile(path.join(__dirname, "../dist/index.html"), {
-        hash: "/",
-      });
+      win.loadFile(path.join(__dirname, "../dist/index.html"), { hash: "/" });
     }
 
     // ✅ Send fingerprint to renderer
@@ -75,7 +83,111 @@ const fs = require("fs");
     });
   }
 
-  // ✅ IPC HANDLERS
+  // ✅ Auto-Updater wiring
+  function setupAutoUpdater() {
+    // Optional: beta/alpha channels (false = only stable)
+    autoUpdater.allowPrerelease = false;
+
+    // Check only in packaged apps
+    if (!isDev) {
+      // Wait for window to be ready
+      const checkForUpdates = () => {
+        if (!win) {
+          console.warn("Window not ready, retrying...");
+          setTimeout(checkForUpdates, 500);
+          return;
+        }
+
+        autoUpdater.checkForUpdates()
+          .then(() => {
+            console.log("Update check initiated successfully");
+          })
+          .catch((e) => {
+            console.error("checkForUpdates error:", e);
+            win.webContents.send("update:status", {
+              state: "error",
+              message: e?.message || String(e),
+            });
+          });
+      };
+
+      // Start update check with proper window validation
+      setTimeout(checkForUpdates, 1000);
+    }
+
+    // Events -> renderer
+    autoUpdater.on("checking-for-update", () => {
+      if (win) {
+        win.webContents.send("update:status", { state: "checking" });
+      }
+    });
+    autoUpdater.on("update-available", (info) => {
+      if (win) {
+        win.webContents.send("update:status", { state: "available", info });
+      }
+    });
+    autoUpdater.on("update-not-available", () => {
+      if (win) {
+        win.webContents.send("update:status", { state: "none" });
+      }
+    });
+    autoUpdater.on("error", (err) => {
+      if (win) {
+        win.webContents.send("update:status", {
+          state: "error",
+          message: err?.message || String(err),
+        });
+      }
+    });
+    autoUpdater.on("download-progress", (p) => {
+      if (win) {
+        win.webContents.send("update:progress", {
+          percent: p.percent,
+          bytesPerSecond: p.bytesPerSecond,
+          transferred: p.transferred,
+          total: p.total,
+        });
+      }
+    });
+    autoUpdater.on("update-downloaded", (info) => {
+      if (win) {
+        win.webContents.send("update:status", { state: "downloaded", info });
+      }
+    });
+
+    // Renderer -> manual controls with proper error handling
+    ipcMain.handle("update:check", async () => {
+      try {
+        await autoUpdater.checkForUpdates();
+        return { success: true };
+      } catch (error) {
+        console.error("Manual update check failed:", error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("update:download", async () => {
+      try {
+        await autoUpdater.downloadUpdate();
+        return { success: true };
+      } catch (error) {
+        console.error("Update download failed:", error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("update:install", () => {
+      if (win) {
+        // Clean up before restart
+        win.removeAllListeners();
+        autoUpdater.quitAndInstall();
+        return true;
+      }
+      return false;
+    });
+  }
+
+  // ✅ IPC HANDLERS (your existing)
   ipcMain.handle("get-fingerprint", async () => {
     return await getFingerprint();
   });
@@ -95,18 +207,17 @@ const fs = require("fs");
   // ✅ Disable DevTools shortcut (Ctrl + Shift + I)
   app.on("browser-window-created", (_, window) => {
     window.webContents.on("before-input-event", (event, input) => {
-      if (
-        input.control &&
-        input.shift &&
-        input.key.toLowerCase() === "i"
-      ) {
+      if (input.control && input.shift && input.key.toLowerCase() === "i") {
         event.preventDefault();
       }
     });
   });
 
   // ✅ App lifecycle
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    createWindow();
+    setupAutoUpdater();
+  });
 
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();

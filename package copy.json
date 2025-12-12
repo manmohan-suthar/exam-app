@@ -12,9 +12,7 @@
     "dev:api": "cd api && npm start",
     "api": "cd api && npm start",
     "build": "vite build",
-    "dist": "electron-builder",
     "build:electron": "npm run build && electron-builder",
-    "publish": "npm run build && electron-builder --publish always",
     "start": "electron ."
   },
   "build": {
@@ -29,18 +27,9 @@
       "electron/**",
       "!node_modules/.cache/**"
     ],
-    "artifactName": "${productName}-${version}-Setup.${ext}",
-    "publish": [
-      { "provider": "github", "owner": "manmohan-suthar", "repo": "exam-app" }
-    ],
     "win": {
       "target": "nsis:x64",
       "icon": "build/icon.ico"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false
     }
   },
   "dependencies": {
