@@ -1,21 +1,27 @@
 name: Build & Publish Electron App (Windows)
 
 permissions:
-  contents: write
+  contents: write   # allow creating/uploading releases
 
 on:
   push:
-    tags: ['v*.*.*']
-  workflow_dispatch: {}
+    tags: ['v*.*.*']     # triggers on tag pushes like v1.0.1
+  workflow_dispatch: {}  # manual run
+
+defaults:
+  run:
+    shell: bash          # use bash on windows-latest
 
 jobs:
   win-build:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -34,17 +40,38 @@ jobs:
             echo "GH_TOKEN is set";
           fi
 
-      - run: npm ci
-      - run: npm run build
+      # ---- create .env from GitHub Secrets (for Vite) ----
+      - name: Create .env for Vite
+        run: |
+          touch .env
+          # add your secrets here; keep keys starting with VITE_
+          if [ ! -z "${{ secrets.VITE_API_URL }}" ]; then echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> .env; fi
+          # example for more:
+          # if [ ! -z "${{ secrets.VITE_WS_URL }}" ]; then echo "VITE_WS_URL=${{ secrets.VITE_WS_URL }}" >> .env; fi
+          echo "Created .env:"
+          cat .env
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build renderer
+        run: npm run build
+
+      # (Optional) Ensure release is published (not Draft) before uploading assets
+      - name: Create/Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}  # use your PAT
 
       - name: Build & Publish Electron App
         env:
-<<<<<<< HEAD
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}       # PAT
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}   # force builder to use PAT
-=======
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}    # <-- use PAT, not GITHUB_TOKEN
->>>>>>> 8b609d3 (build file)
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}      # PAT with Contents:RW (or classic repo scope)
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}  # force electron-builder to use PAT
         run: npx electron-builder --win nsis --publish always
 
       - name: Upload artifacts (optional)
