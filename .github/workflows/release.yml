@@ -1,5 +1,8 @@
 name: Build & Publish Electron App (Windows)
 
+permissions:
+  contents: write   # needed to create releases & upload assets
+
 on:
   push:
     tags:
