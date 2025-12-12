@@ -196,8 +196,7 @@ const LoadingPage = () => {
       <Typography variant="h6" align="center">
         {message}
       </Typography>
-    <h1>  api url </h1>
-      {import.meta.env.VITE_API_BASE_URL}
+   
 
     </Box>
   );
