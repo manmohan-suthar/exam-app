@@ -13,24 +13,34 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install deps
-        run: npm ci
+      - name: Show ref (debug)
+        run: |
+          echo "EVENT_NAME=$GITHUB_EVENT_NAME"
+          echo "REF=$GITHUB_REF"
+          echo "REF_NAME=$GITHUB_REF_NAME"
 
-      - name: Build renderer
-        run: npm run build
+      - name: Check token available (debug)
+        run: |
+          if [ -z "${{ secrets.GH_TOKEN }}" ]; then
+            echo "ERROR: GH_TOKEN secret missing"; exit 1;
+          else
+            echo "GH_TOKEN is set";
+          fi
+
+      - run: npm ci
+      - run: npm run build
 
       - name: Build & Publish Electron App
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}    # <-- use PAT, not GITHUB_TOKEN
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}       # PAT
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}   # force builder to use PAT
         run: npx electron-builder --win nsis --publish always
 
       - name: Upload artifacts (optional)
