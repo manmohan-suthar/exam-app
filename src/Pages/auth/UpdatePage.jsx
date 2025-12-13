@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const fmtBytes = (n = 0) => {
   if (!n) return "0 B/s";
@@ -14,6 +15,8 @@ export default function UpdatePage() {
   const [percent, setPercent] = useState(0);
   const [bps, setBps] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const navigate = useNavigate();
 
   // flags for button spinners
   const [isChecking, setIsChecking] = useState(false);
@@ -235,6 +238,10 @@ export default function UpdatePage() {
           <div className="mt-6 text-xs text-gray-500">
             Tip: Click <b>Check</b>. If an update is found, click <b>Download</b>, then <b>Restart to Update</b>.
           </div>
+        
+        <div className="mt-6">
+          <button onClick={() => navigate(-1)} className="px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-sm">Back Home</button>
+        </div>
         </div>
       </div>
     </div>

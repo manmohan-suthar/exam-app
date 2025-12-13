@@ -49,31 +49,31 @@ const ReadingPapersBuilder = () => {
         {
           unitNumber: 1,
           title: 'Section 1',
-          instructions: 'Read the text below and answer the questions.',
+          sectionInstructions: 'Read the text below and answer the questions.',
           questions: []
         },
         {
           unitNumber: 2,
           title: 'Section 2',
-          instructions: 'Read the text below and answer the questions.',
+          sectionInstructions: 'Read the text below and answer the questions.',
           questions: []
         },
         {
           unitNumber: 3,
           title: 'Section 3',
-          instructions: 'Read the text below and answer the questions.',
+          sectionInstructions: 'Read the text below and answer the questions.',
           questions: []
         },
         {
           unitNumber: 4,
           title: 'Section 4',
-          instructions: 'Read the text below and answer the questions.',
+          sectionInstructions: 'Read the text below and answer the questions.',
           questions: []
         },
         {
           unitNumber: 5,
           title: 'Section 5',
-          instructions: 'Read the text below and answer the questions.',
+          sectionInstructions: 'Read the text below and answer the questions.',
           questions: []
         }
       ],
@@ -93,31 +93,31 @@ const ReadingPapersBuilder = () => {
       {
         unitNumber: 1,
         title: 'Section 1',
-        instructions: 'Read the text below and answer the questions.',
+        sectionInstructions: 'Read the text below and answer the questions.',
         questions: []
       },
       {
         unitNumber: 2,
         title: 'Section 2',
-        instructions: 'Read the text below and answer the questions.',
+        sectionInstructions: 'Read the text below and answer the questions.',
         questions: []
       },
       {
         unitNumber: 3,
         title: 'Section 3',
-        instructions: 'Read the text below and answer the questions.',
+        sectionInstructions: 'Read the text below and answer the questions.',
         questions: []
       },
       {
         unitNumber: 4,
         title: 'Section 4',
-        instructions: 'Read the text below and answer the questions.',
+        sectionInstructions: 'Read the text below and answer the questions.',
         questions: []
       },
       {
         unitNumber: 5,
         title: 'Section 5',
-        instructions: 'Read the text below and answer the questions.',
+        sectionInstructions: 'Read the text below and answer the questions.',
         questions: []
       }
     ];
@@ -140,6 +140,11 @@ const ReadingPapersBuilder = () => {
         const type2Gaps = unit.questions.filter(q => q.type === 'type2_gap_fill');
         const otherQuestions = unit.questions.filter(q => q.type !== 'type2_gap_fill');
 
+        // Set section instructions from passages if available
+        if (paperWithUnits.passages && paperWithUnits.passages[unitIndex]) {
+          unit.sectionInstructions = paperWithUnits.passages[unitIndex].sectionInstructions || paperWithUnits.passages[unitIndex].instructions || unit.sectionInstructions;
+        }
+
         if (type2Gaps.length > 0) {
           // Group all type2 gaps in this unit into one question
           const sortedGaps = type2Gaps.sort((a, b) => a.order - b.order);
@@ -152,7 +157,6 @@ const ReadingPapersBuilder = () => {
           const type2Question = {
             type: 'type2_gap_fill',
             question: paper.passages ? paper.passages[unitIndex]?.content || '' : '',
-            instructions: type2Gaps[0].instructions || 'Read the text below and decide which option (A, B or C) best fits each gap.',
             gaps: gaps,
             unitNumber: unit.unitNumber,
             order: type2Gaps[0].order
@@ -183,6 +187,13 @@ const ReadingPapersBuilder = () => {
       return;
     }
 
+    // Validate that all sections have instructions
+    const hasEmptyInstructions = currentPaper.units?.some(unit => !unit.sectionInstructions?.trim());
+    if (hasEmptyInstructions) {
+      alert('All sections must have instructions');
+      return;
+    }
+
     setLoading(true);
     try {
       const admin = JSON.parse(localStorage.getItem('admin'));
@@ -201,7 +212,8 @@ const ReadingPapersBuilder = () => {
           order: unitIndex,
           unitNumber: unit.unitNumber,
           sectionTitle: unit.title,
-          globalIndex: flattenedPassages.length,
+          sectionInstructions: unit.sectionInstructions,
+          globalIndex: unitIndex,
           localIndex: 0
         });
 
@@ -245,7 +257,6 @@ const ReadingPapersBuilder = () => {
                 allQuestions.push({
                   type: 'type5_reading_comprehension',
                   question: cq.question,
-                  instructions: question.instructions,
                   options: cq.options,
                   correctAnswer: cq.correctAnswer,
                   passageIndex: flattenedPassages.length - 1,
@@ -342,7 +353,6 @@ const ReadingPapersBuilder = () => {
         newQuestion = {
           type: 'type1_word_replacement',
           question: '',
-          instructions: 'Read the sentences below and decide which option (A, B, C or D) can best replace the word in bold so that the meaning of the sentence remains the same.',
           options: [
             { letter: 'A', text: '' },
             { letter: 'B', text: '' },
@@ -358,7 +368,6 @@ const ReadingPapersBuilder = () => {
         newQuestion = {
           type: 'type2_gap_fill',
           question: '',
-          instructions: 'Read the text below and decide which option (A, B or C) best fits each gap.',
           gaps: [
             {
               gapNumber: 1,
@@ -387,7 +396,6 @@ const ReadingPapersBuilder = () => {
         newQuestion = {
           type: 'type3_sentence_completion',
           question: '',
-          instructions: 'Read the article from an international news magazine. Drag and drop the correct sentence to complete the gaps in the text. There are extra sentences you will not need.',
           sentences: [
             { letter: 'A', text: '', isExtra: false },
             { letter: 'B', text: '', isExtra: false },
@@ -409,7 +417,6 @@ const ReadingPapersBuilder = () => {
         newQuestion = {
           type: 'type4_matching_headings',
           question: '',
-          instructions: 'Read the texts below. There are questions about the texts. Which text gives you the answer to each question? Drag and drop the correct text to answer each question.',
           texts: [],
           matchingQuestions: [],
           unitNumber: currentUnit,
@@ -420,7 +427,6 @@ const ReadingPapersBuilder = () => {
         newQuestion = {
           type: 'type5_reading_comprehension',
           question: '',
-          instructions: 'Read the article about intelligence and ageing and answer the questions.',
           comprehensionQuestions: [],
           unitNumber: currentUnit,
           order: questions.length
@@ -701,7 +707,7 @@ const ReadingPapersBuilder = () => {
                             <span className="text-white text-xs font-bold">i</span>
                           </div>
                           <p className="text-blue-800 font-medium text-sm leading-relaxed">
-                            {currentUnitData.instructions}
+                            {currentUnitData.sectionInstructions}
                           </p>
                         </div>
                       </div>
@@ -996,8 +1002,8 @@ const ReadingPapersBuilder = () => {
                   <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
                     <input
                       type="text"
-                      value={currentUnitData.instructions || ''}
-                      onChange={(e) => updateUnit(currentUnit, { instructions: e.target.value })}
+                      value={currentUnitData.sectionInstructions || ''}
+                      onChange={(e) => updateUnit(currentUnit, { sectionInstructions: e.target.value })}
                       className="w-full bg-transparent border-none outline-none text-slate-700 font-medium"
                       placeholder="Section instructions"
                     />

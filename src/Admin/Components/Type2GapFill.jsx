@@ -120,7 +120,7 @@ const Type2GapFill = ({ question, onUpdate, onDelete, index }) => {
         </div>
 
         <div className="space-y-4">
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Instructions
             </label>
@@ -131,7 +131,7 @@ const Type2GapFill = ({ question, onUpdate, onDelete, index }) => {
               rows={2}
               placeholder="Enter instructions for this question type"
             />
-          </div>
+          </div> */}
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">

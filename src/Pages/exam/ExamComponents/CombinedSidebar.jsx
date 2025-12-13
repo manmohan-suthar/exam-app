@@ -107,7 +107,7 @@ const CombinedSidebar = React.memo(({
                     >
                       {isPartActive && (
                         <span
-                          className="absolute top-0 right-[-8px] h-full w-2 bg-[#FF3200]"
+                          className="absolute top-0 right-[-7px] h-full w-2 bg-[#FF3200]"
                           style={{
                             clipPath:
                               "polygon(0 0, 100% 50%, 0 100%)",

@@ -315,28 +315,44 @@ useEffect(() => {
   
   const isSettingContent = useRef(false);
 
-
-  
-  
-  // Quill text-change
   useEffect(() => {
     if (!quillInstance.current) return;
   
     const quill = quillInstance.current;
-    const handler = () => {
-      if (isSettingContent.current) return;
-      const html = quill.root.innerHTML;
+    const currentTaskData = currentPaper?.tasks?.find(t => t.taskNumber === currentTask);
   
-      // 🔒 Avoid redundant state updates
-      if (html !== content) {
-        setContent(html);
-        updateTask(currentTask, { prompt: html });
-      }
-    };
+    isSettingContent.current = true;
+    // Clear + paste HTML for the selected task
+    quill.setContents([]);
+    quill.clipboard.dangerouslyPasteHTML(currentTaskData?.prompt || '');
+    // Move cursor to end
+    quill.setSelection(quill.getLength(), 0);
+    isSettingContent.current = false;
   
-    quill.on("text-change", handler);
-    return () => quill.off("text-change", handler);
-  }, [currentTask, content]); // include content for the comparison
+    setContent(currentTaskData?.prompt || '');
+  }, [currentTask, currentPaper?._id]); // ya [currentTask, currentPaper]
+  
+  
+  
+  // Quill text-change
+// ❌ REMOVE this entire effect — duplicate handler
+useEffect(() => {
+  if (!quillInstance.current) return;
+
+  const quill = quillInstance.current;
+  const handler = () => {
+    if (isSettingContent.current) return;
+    const html = quill.root.innerHTML;
+    if (html !== content) {
+      setContent(html);
+      updateTask(currentTask, { prompt: html });
+    }
+  };
+
+  quill.on("text-change", handler);
+  return () => quill.off("text-change", handler);
+}, [currentTask, content]);
+
   
   
   
@@ -797,11 +813,9 @@ useEffect(() => {
 
                   <div className="border border-slate-300 rounded-lg">
                   <div
-  key={`${currentPaper?._id || 'new'}-${currentTask}`}
   ref={editorRef}
   style={{ height: '400px', background: 'white' }}
 />
-
 
 
 

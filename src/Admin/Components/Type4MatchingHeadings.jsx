@@ -52,10 +52,11 @@ const Type4MatchingHeadings = ({ question, onUpdate, onDelete, index }) => {
   };
 
   const handleSave = () => {
-    if (!editData.question.trim()) {
-      alert('Please enter introductory text');
-      return;
-    }
+    // if (!editData.question.trim()) {
+    //   alert('Please enter introductory text');
+    //   return;
+
+    // }
 
     if (editData.texts.length === 0) {
       alert('Please add at least one text');
@@ -120,7 +121,7 @@ const Type4MatchingHeadings = ({ question, onUpdate, onDelete, index }) => {
         </div>
 
         <div className="space-y-4">
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Instructions
             </label>
@@ -131,7 +132,7 @@ const Type4MatchingHeadings = ({ question, onUpdate, onDelete, index }) => {
               rows={2}
               placeholder="Enter instructions for this question type"
             />
-          </div>
+          </div> */}
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">

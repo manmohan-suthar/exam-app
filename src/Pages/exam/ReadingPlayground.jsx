@@ -3,7 +3,12 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import io from "socket.io-client";
 
-export default function ReadingPlayground({ test, currentPart = 0, onPartChange, onReadingCompleted }) {
+export default function ReadingPlayground({
+  test,
+  currentPart = 0,
+  onPartChange,
+  onReadingCompleted,
+}) {
   const [paper, setPaper] = useState(null);
   const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState({});
@@ -16,7 +21,6 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
   const hasRefreshedRef = useRef(false);
 
   const navigate = useNavigate();
-
 
   // One-time page refresh on load
   // useEffect(() => {
@@ -49,14 +53,19 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
 
           // Fetch real-time reading timing from API
           const timingRes = await fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/reading-timing/${test.exam_paper}`
+            `${import.meta.env.VITE_API_BASE_URL}/reading-timing/${
+              test.exam_paper
+            }`
           );
           if (!cancelled && timingRes.ok) {
             const timingData = await timingRes.json();
             const realTimeTiming = timingData.timing || 40; // assuming timing in minutes
             setTimeLeft(realTimeTiming * 60);
           } else {
-            console.error("Failed fetching real-time timing:", timingRes.status);
+            console.error(
+              "Failed fetching real-time timing:",
+              timingRes.status
+            );
             // Fallback to assignment timing
             const readingTiming =
               assignmentData?.assignment?.exam_paper?.reading_timing || 40;
@@ -100,7 +109,6 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
-   
       newSocket.emit("join", { room: test._id, role: "student" });
     });
 
@@ -176,8 +184,6 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
         transformedAnswers[key] = val;
       });
 
-
-
       const payload = {
         studentId: student._id || student.student_id,
         assignmentId: test.assignmentId,
@@ -232,7 +238,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
   const endExam = async () => {
     // Store remaining time for bonus to writing exam
     if (timeLeft > 0) {
-      localStorage.setItem('readingRemainingTime', timeLeft.toString());
+      localStorage.setItem("readingRemainingTime", timeLeft.toString());
     }
     // Stop the timer
     setTimeLeft(null);
@@ -283,7 +289,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                   value={opt.letter}
                   checked={selected}
                   readOnly
-                 className="hidden"
+                  className="hidden"
                 />
                 <div
                   className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -308,7 +314,6 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
   };
 
   const renderType2 = (q) => {
-
     const questionKey = `type2-${q.questionNumber || q.order + 1}`;
     return (
       <div className="p-4">
@@ -380,7 +385,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                 <span
                   key={i}
                   className={`inline-block border-1 rounded-2xl min-h-4 bg-white min-w-30 text-center relative ${
-                    assigned ? 'border-[#e94b1b]' : 'border-gray-400'
+                    assigned ? "border-[#e94b1b]" : "border-gray-400"
                   }`}
                   onDrop={(e) => {
                     e.preventDefault();
@@ -410,7 +415,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                       </button>
                     </div>
                   ) : (
-                    <div ></div>
+                    <div></div>
                   )}
                 </span>
               );
@@ -433,8 +438,8 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                 }`}
               >
                 <div className="flex flex-col text-center ">
-                <strong>{sent.letter}.</strong>
-                 {sent.text}
+                  <strong>{sent.letter}.</strong>
+                  {sent.text}
                 </div>
               </div>
             );
@@ -466,12 +471,11 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                 }`}
               >
                 <div className="flex flex-col text-center ">
-                <div className="font-bold text-lg mb-2">{text.letter}.</div>
-                <div className="text-gray-800 text-[10px] text-start leading-relaxed">
-                  {text.content}
+                  <div className="font-bold text-lg mb-2">{text.letter}.</div>
+                  <div className="text-gray-800 text-[10px] text-start leading-relaxed">
+                    {text.content}
+                  </div>
                 </div>
-                </div>
-
               </div>
             );
           })}
@@ -484,53 +488,52 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
           {q.matchingQuestions?.map((mq) => {
             return (
               <div
-              key={mq.questionNumber}
-              className={`p-3 rounded-lg last:mb-0 transition ${
-                answers[`type4-${mq.questionNumber}`]
-                  ? "bg-[#FEF2E7] border-2 border-[#e94b1b]"
-                  : "bg-gray-50 border-2 border-dashed border-gray-300 hover:bg-[#FFF5EE]"
-              }`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const textLetter = e.dataTransfer.getData("text");
-            
-                if (!textLetter) return;
-            
-                setAnswers((prev) => ({
-                  ...prev,
-                  [`type4-${mq.questionNumber}`]: textLetter,
-                }));
-              }}
-            >
-              {/* QUESTION TEXT */}
-              <p className="text-gray-700 text-[13px] mb-2 leading-relaxed">
-                {mq.questionNumber}. {mq.question}
-              </p>
-            
-              {/* SELECTED ANSWER DISPLAY */}
-              {answers[`type4-${mq.questionNumber}`] && (
-                <div className="mt-2 flex items-center justify-between bg-white p-2 rounded border">
-                  <span className="text-[13px]">
-                    Text {answers[`type4-${mq.questionNumber}`]}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setAnswers((prev) => {
-                        const newAnswers = { ...prev };
-                        delete newAnswers[`type4-${mq.questionNumber}`];
-                        return newAnswers;
-                      });
-                    }}
-                    className="text-red-500 hover:text-red-700 font-bold"
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-            </div>
-            
+                key={mq.questionNumber}
+                className={`p-3 rounded-lg last:mb-0 transition ${
+                  answers[`type4-${mq.questionNumber}`]
+                    ? "bg-[#FEF2E7] border-2 border-[#e94b1b]"
+                    : "bg-gray-50 border-2 border-dashed border-gray-300 hover:bg-[#FFF5EE]"
+                }`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const textLetter = e.dataTransfer.getData("text");
+
+                  if (!textLetter) return;
+
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [`type4-${mq.questionNumber}`]: textLetter,
+                  }));
+                }}
+              >
+                {/* QUESTION TEXT */}
+                <p className="text-gray-700 text-[13px] mb-2 leading-relaxed">
+                  {mq.questionNumber}. {mq.question}
+                </p>
+
+                {/* SELECTED ANSWER DISPLAY */}
+                {answers[`type4-${mq.questionNumber}`] && (
+                  <div className="mt-2 flex items-center justify-between bg-white p-2 rounded border">
+                    <span className="text-[13px]">
+                      Text {answers[`type4-${mq.questionNumber}`]}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAnswers((prev) => {
+                          const newAnswers = { ...prev };
+                          delete newAnswers[`type4-${mq.questionNumber}`];
+                          return newAnswers;
+                        });
+                      }}
+                      className="text-red-500 hover:text-red-700 font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -567,7 +570,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                       value={opt.letter}
                       checked={selected}
                       readOnly
-                     className="hidden"
+                      className="hidden"
                     />
                     <div
                       className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -703,7 +706,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                       value={opt.letter}
                       checked={selected}
                       readOnly
-                     className="hidden"
+                      className="hidden"
                     />
                     <div
                       className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -777,7 +780,7 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                       value={opt.letter}
                       checked={selected}
                       readOnly
-                     className="hidden"
+                      className="hidden"
                     />
                     <div
                       className={`flex items-center justify-center font-semibold text-lg w-8 h-8 ${
@@ -856,27 +859,69 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
       
         </div>
       </header> */}
-       <div className="mb-2 w-full flex justify-between">
-
-       <div className="w-full flex items-center justify-end ">
-        <div className="flex items-center gap-2 font-mono text-[13px] font-semibold   text-white ">
-          <button className="bg-[#FF3200]   pl-5 pr-5 ">Preview</button>
-          <button className="bg-[#FF3200]   pl-5 pr-5 ">Next</button>
-          <button className="bg-[#FF3200]   pl-5 pr-5 " onClick={endExam}>End</button>
-          <p className="bg-[#FF3200] px-5 flex items-center justify-center gap-1 text-white">
-  {formatTime(timeLeft)}
-  <Clock6 size={16} />
-</p>
+      <div className="mb-2 w-full flex justify-between">
+        <div className="w-full flex items-center justify-end ">
+          <div className="flex items-center gap-2 font-mono text-[13px] font-semibold   text-white ">
+            <button className="bg-[#FF3200]   pl-5 pr-5 ">Preview</button>
+            <button className="bg-[#FF3200]   pl-5 pr-5 ">Next</button>
+            <button className="bg-[#FF3200]   pl-5 pr-5 " onClick={endExam}>
+              End
+            </button>
+            <p className="bg-[#FF3200] px-5 flex items-center justify-center gap-1 text-white">
+              {formatTime(timeLeft)}
+              <Clock6 size={16} />
+            </p>
+          </div>
         </div>
       </div>
-          </div>
 
       <div className="max-w-6xl  mx-auto py-2">
         {/* main content (scrollable) */}
         <main className="w-full h-[96vh] overflow-y-scroll pb-20 pr-2">
-          {/* instructions */}
-          <div className="bg-gray-100 border-l-4 border-gray-300 p-2 mb-6">
-            Read the text and answer the questions.
+          {/* Section Instructions - Dynamic from database with error handling */}
+          <div className="bg-[#EEEEEE]  p-4 mb-6" role="region" aria-labelledby="section-instructions-heading">
+            <div className="flex items-start gap-3">
+          
+              <div className="flex-1">
+                <h3 id="section-instructions-heading" className="font-semibold mb-2 sr-only">
+                  Section {currentPart + 1} Instructions
+                </h3>
+                <p className="text-sm capitalize leading-relaxed" aria-live="polite">
+  {(() => {
+    try {
+      const currentPassage = paper?.passages?.find(
+        (p) => p.unitNumber === currentPart + 1
+      );
+
+      if (!currentPassage) {
+        console.warn(`No passage found for section ${currentPart + 1}`);
+        return 'Read the text below and answer the questions.';
+      }
+
+      let instructions =
+        currentPassage?.sectionInstructions ||
+        currentPassage?.instructions ||
+        'Read the text below and answer the questions.';
+
+      // Ensure valid string
+      if (typeof instructions !== 'string' || !instructions.trim()) {
+        console.warn(`Invalid instructions for section ${currentPart + 1}`);
+        return 'Read the text below and answer the questions.';
+      }
+
+      // 🔥 Remove wrapping quotes: "test" => test
+      instructions = instructions.replace(/^"(.*)"$/, '$1');
+
+      return instructions;
+    } catch (error) {
+      console.error('Error loading section instructions:', error);
+      return 'Read the text below and answer the questions.';
+    }
+  })()}
+</p>
+
+              </div>
+            </div>
           </div>
 
           {/* Passage and Questions for Type 2 and Type 5 */}
@@ -939,13 +984,13 @@ export default function ReadingPlayground({ test, currentPart = 0, onPartChange,
                         {q.type !== "type3_sentence_completion" &&
                           q.question && (
                             <div
-                              className="text-gray-800 font-medium m-0"
-                              dangerouslySetInnerHTML={{
-                                __html: q.question.replace(
-                                  /\*\*(.*?)\*\*/g,
-                                  "<strong>$1</strong>"
-                                ),
-                              }}
+                            // className="text-gray-800 font-medium m-0"
+                            // dangerouslySetInnerHTML={{
+                            //   __html: q.question.replace(
+                            //     /\*\*(.*?)\*\*/g,
+                            //     "<strong>$1</strong>"
+                            //   ),
+                            // }}
                             />
                           )}
                       </div>

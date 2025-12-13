@@ -339,9 +339,47 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
       <div className="max-w-6xl mx-auto px-4 py-2 h-[95vh] p-20">
         {/* main content */}
         <main className="w-full">
-          {/* instructions */}
-          <div className="bg-gray-100 border-l-4 border-gray-300 p-2 mb-6">
-            Read the task and write your answer.
+          {/* Dynamic Task Instructions - Consistent with ReadingPlayground */}
+          <div className="bg-[#EEEEEE]   p-4 mb-6 " role="region" aria-labelledby="task-instructions-heading">
+            <div className="flex items-start gap-3">
+
+              <div className="flex-1">
+                <h3 id="task-instructions-heading" className="font-semibold  mb-2 sr-only">
+                  Task {currentTask} Instructions
+                </h3>
+                <p className=" capitalize text-sm leading-relaxed" aria-live="polite">
+                  {(() => {
+                    try {
+                      // Find the current task based on currentTask
+                      const currentTaskData = paper?.tasks?.find(
+                        (t) => t.taskNumber === currentTask
+                      );
+
+                      // Validate task structure
+                      if (!currentTaskData) {
+                        console.warn(`No task found for task number ${currentTask}`);
+                        return 'Read the task and write your answer.';
+                      }
+
+                      // Get task instructions with fallback to default
+                      const instructions = currentTaskData?.instructions ||
+                                           'Read the task and write your answer.';
+
+                      // Validate instructions
+                      if (typeof instructions !== 'string' || !instructions.trim()) {
+                        console.warn(`Invalid instructions for task ${currentTask}`);
+                        return 'Read the task and write your answer.';
+                      }
+
+                      return instructions;
+                    } catch (error) {
+                      console.error('Error loading task instructions:', error);
+                      return 'Read the task and write your answer.';
+                    }
+                  })()}
+                </p>
+              </div>
+            </div>
           </div>
 
           {(() => {
