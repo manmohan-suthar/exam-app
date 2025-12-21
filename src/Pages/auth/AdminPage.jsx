@@ -128,6 +128,16 @@ const AdminPage = () => {
 
           <div className="text-center">
             <p className="text-gray-600">
+            Forgot your {' '}
+              <button
+  type="button"
+  className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+  onClick={() => navigate('/forgot-password')}
+>
+  Password?
+</button>
+</p>
+            <p className="text-gray-600">
               Back to{' '}
               <button
                 type="button"

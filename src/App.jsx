@@ -34,6 +34,7 @@ const LoadingPage = lazy(() => import('./Pages/LoadingPage'));
 const ExamPage = lazy(() => import('./Pages/ExamPage'));
 const ThanksPage = lazy(() => import('./Pages/exam/ThanksPage'));
 const UpdatePage = lazy(() => import('./Pages/auth/UpdatePage'));
+const ForgotPassword = lazy(() => import('./Pages/auth/ForgotPassword'));
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
       <Suspense fallback={<div>Loading...</div>}>
         <Routes>
           <Route path="/" element={<LoadingPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           {/* <Route path="/login" element={<LoginPage />} /> */}
           {/* <Route path="/" element={<LoginPage />} /> */}
           <Route path="/agent-login" element={<AgentLoginPage />} />

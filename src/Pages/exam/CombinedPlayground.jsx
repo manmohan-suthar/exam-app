@@ -161,9 +161,17 @@ const CombinedPlayground = () => {
             if (res.ok) {
               const d = await res.json();
               const paper = d.paper;
-              const parts = paper.passages.map((s, idx) => ({
-                label: `Reading Part ${idx + 1}`,
-              }));
+          
+              const parts = paper.passages.map((s, idx) => {
+                if (idx === 0) {
+                  return { label: "Reading Part 1a" };
+                }
+                if (idx === 1) {
+                  return { label: "Reading Part 1b" };
+                }
+                return { label: `Reading Part ${idx}` };
+              });
+          
               data.push({
                 key: "reading",
                 label: "Reading",
@@ -173,7 +181,8 @@ const CombinedPlayground = () => {
               });
               seenModules.add("reading");
             }
-          } else if (exam.skill === "writing") {
+          }
+           else if (exam.skill === "writing") {
             const res = await fetch(
               `${import.meta.env.VITE_API_BASE_URL}/writing/${exam.exam_paper}`
             );
