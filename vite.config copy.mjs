@@ -3,10 +3,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  base: './',   // Important for Electron
+  base: './',   // IMPORTANT for Electron
   logLevel: 'info',
   clearScreen: false,
-
   plugins: [
     react(),
     tailwindcss()
@@ -14,19 +13,6 @@ export default defineConfig({
 
   server: {
     port: 5173,
-    host: true, // allow LAN / ngrok
-    strictPort: true, // fail if port is already in use
-
-    // ✅ Allow ngrok domains and localhost
-    allowedHosts: [
-      '.ngrok-free.dev', // any ngrok subdomain
-      'localhost',
-      '127.0.0.1'
-    ],
-
-    // Optional: sometimes helps with ngrok
-    origin: 'https://unplowed-darkish-jerald.ngrok-free.dev',
-
     proxy: {
       '/api': 'http://localhost:3001',
       '/uploads': 'http://localhost:3001'
@@ -37,6 +23,7 @@ export default defineConfig({
     outDir: 'dist',
   },
 
+  // Prevent Vite from bundling Electron/Node modules
   optimizeDeps: {
     exclude: ['macaddress', 'os', 'electron']
   },

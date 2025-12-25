@@ -24,7 +24,7 @@ const SetExam = () => {
 
   const examTypes = [
     { id: 'listening', label: 'Listening' },
-    // { id: 'speaking', label: 'Speaking' },
+    { id: 'speaking', label: 'Speaking' },
     { id: 'writing', label: 'Writing' },
     { id: 'reading', label: 'Reading' }
   ];

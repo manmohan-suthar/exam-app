@@ -136,25 +136,15 @@ const AgentDashboard = () => {
   };
 
   const getExamStatus = (exam) => {
-    const examDateTime = new Date(exam.exam_date);
-    const [hours, minutes] = exam.exam_time.split(':');
-    examDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-    const now = new Date();
-    const timeDiff = examDateTime - now;
-    const hoursDiff = timeDiff / (1000 * 60 * 60);
-
     if (exam.status === 'completed') return { status: 'completed', color: 'green' };
     if (exam.status === 'in_progress') return { status: 'in_progress', color: 'blue' };
-    if (hoursDiff < -1) return { status: 'expired', color: 'red' };
-    if (hoursDiff <= 1) return { status: 'upcoming', color: 'yellow' };
+    if (exam.status === 'available') return { status: 'available', color: 'yellow' };
+    if (exam.status === 'assigned') return { status: 'assigned', color: 'yellow' };
     return { status: 'scheduled', color: 'gray' };
   };
 
   const formatExamTime = (exam) => {
     const examDate = new Date(exam.exam_date);
-    const [hours, minutes] = exam.exam_time.split(':');
-    examDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
     return examDate.toLocaleString();
   };
 
@@ -593,6 +583,8 @@ const AgentDashboard = () => {
               <div className="space-y-4">
                 {assignedExams.map((exam) => {
                   const examStatus = getExamStatus(exam);
+                  console.log(examStatus);
+                  
                   return (
                     <div key={exam._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start">
@@ -622,7 +614,6 @@ const AgentDashboard = () => {
 
                           <div className="text-sm text-gray-600 space-y-1">
                             <p><strong>Exam:</strong> {exam.exam_tittle}</p>
-                            <p><strong>Time:</strong> {formatExamTime(exam)}</p>
                             <p><strong>Duration:</strong> {exam.duration} minutes</p>
                             {exam.pc && (
                               <p><strong>PC:</strong> {exam.pc.macAddress} ({exam.pc.pcName})</p>
@@ -661,7 +652,7 @@ const AgentDashboard = () => {
                             </>
                           )}
 
-                          {examStatus.status === 'upcoming' && (
+                          {(examStatus.status === 'available' || examStatus.status === 'in_progress' || examStatus.status === 'assigned') && (
                             <>
                               <button
                                 onClick={() => startMonitoring(exam)}

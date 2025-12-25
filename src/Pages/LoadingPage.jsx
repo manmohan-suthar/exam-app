@@ -47,6 +47,13 @@ const LoadingPage = () => {
         stopAllPolling();
         navigate('/update-page');
       }
+      // Ctrl/Cmd + Shift + s  →  /agent-login
+      if (e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        e.stopPropagation();
+        stopAllPolling();
+        navigate('/agent-login');
+      }
     };
   
     window.addEventListener('keydown', handleHotkeys, true);
