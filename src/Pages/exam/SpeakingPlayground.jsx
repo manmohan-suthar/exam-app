@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
+import { Mic, MicOff, Video, VideoOff, GripHorizontal } from "lucide-react";
 
-const SpeakingPlayground = ({ test }) => {
+const SpeakingPlayground = ({ test, onSectionChange }) => {
   const navigate = useNavigate();
 
   const studentName = test?.student?.name || "Suthar";
@@ -30,6 +31,21 @@ const SpeakingPlayground = ({ test }) => {
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [videoCallError, setVideoCallError] = useState(null);
 
+  // Draggable container state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [containerPosition, setContainerPosition] = useState({ x: 20, y: 20 });
+  const [containerSize, setContainerSize] = useState({
+    width: 320,
+    height: 240,
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [lastPosition, setLastPosition] = useState({ x: 20, y: 20 });
+  const [lastSize, setLastSize] = useState({ width: 320, height: 240 });
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
+
   // Video refs
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -50,16 +66,28 @@ const SpeakingPlayground = ({ test }) => {
 
   // Update video elements when streams change (only set srcObject once)
   useEffect(() => {
-    if (localVideoRef.current && localStreamRef.current && !localVideoRef.current.srcObject) {
+    if (
+      localVideoRef.current &&
+      localStreamRef.current &&
+      !localVideoRef.current.srcObject
+    ) {
       localVideoRef.current.srcObject = localStreamRef.current;
-      localVideoRef.current.play().catch(e => console.log('Student local video play failed', e));
+      localVideoRef.current
+        .play()
+        .catch((e) => console.log("Student local video play failed", e));
     }
   }, [localStream]);
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream && !remoteVideoRef.current.srcObject) {
+    if (
+      remoteVideoRef.current &&
+      remoteStream &&
+      !remoteVideoRef.current.srcObject
+    ) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(e => console.log('Student remote video play failed', e));
+      remoteVideoRef.current
+        .play()
+        .catch((e) => console.log("Student remote video play failed", e));
     }
   }, [remoteStream]);
 
@@ -67,15 +95,15 @@ const SpeakingPlayground = ({ test }) => {
   useEffect(() => {
     return () => {
       if (socketRef.current) {
-        socketRef.current.off('offer');
-        socketRef.current.off('answer');
-        socketRef.current.off('ice');
-        socketRef.current.off('peer-joined');
-        socketRef.current.off('permission-granted');
-        socketRef.current.off('change-section');
-        socketRef.current.off('change-passage');
-        socketRef.current.off('end-exam');
-        socketRef.current.off('disconnect');
+        socketRef.current.off("offer");
+        socketRef.current.off("answer");
+        socketRef.current.off("ice");
+        socketRef.current.off("peer-joined");
+        socketRef.current.off("permission-granted");
+        socketRef.current.off("change-section");
+        socketRef.current.off("change-passage");
+        socketRef.current.off("end-exam");
+        socketRef.current.off("disconnect");
         socketRef.current.disconnect();
       }
       cleanupWebRTC();
@@ -167,21 +195,26 @@ const SpeakingPlayground = ({ test }) => {
     socketRef.current = newSocket;
 
     newSocket.on("connect", () => {
-      console.log("Student connected to Socket.IO, assignmentId:", test.assignmentId);
-      newSocket.emit('join', { room: test.assignmentId, role: 'student' });
+      console.log(
+        "Student connected to Socket.IO, assignmentId:",
+        test.assignmentId
+      );
+      newSocket.emit("join", { room: test.assignmentId, role: "student" });
       console.log("Student joining exam room:", test.assignmentId);
       setSocketConnected(true);
     });
 
     newSocket.on("peer-joined", (data) => {
-      if (data.role === 'agent') {
-        console.log('Student: Agent joined the room');
+      if (data.role === "agent") {
+        console.log("Student: Agent joined the room");
         setAgentConnected(true);
       }
     });
 
     newSocket.on("permission-granted", () => {
-      console.log("Student: Permission granted - waiting for agent to start video call");
+      console.log(
+        "Student: Permission granted - waiting for agent to start video call"
+      );
       setPermissionGranted(true);
       // Agent will send offer to start video call
     });
@@ -199,6 +232,11 @@ const SpeakingPlayground = ({ test }) => {
       setAgentConnected(true);
       setWaitingForAgent(false);
       startExam();
+      
+      // Notify parent component about section change
+      if (onSectionChange) {
+        onSectionChange(section);
+      }
     });
 
     newSocket.on("change-passage", (direction) => {
@@ -233,9 +271,11 @@ const SpeakingPlayground = ({ test }) => {
     if (examStartedRef.current) return; // Prevent multiple starts
 
     try {
-      console.log('Student: Starting exam via API call');
+      console.log("Student: Starting exam via API call");
       const resp = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${test.assignmentId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${
+          test.assignmentId
+        }`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -248,13 +288,13 @@ const SpeakingPlayground = ({ test }) => {
 
       if (!resp.ok) throw new Error("Failed to start exam");
 
-      console.log('Student: Exam started successfully');
+      console.log("Student: Exam started successfully");
       examStartedRef.current = true;
       setExamStarted(true);
       setTimeLeft((test.duration || 60) * 60); // minutes -> seconds
       setWaitingForAgent(false);
     } catch (err) {
-      console.error('Student: Failed to start exam:', err);
+      console.error("Student: Failed to start exam:", err);
       setError("Failed to start exam. Please try again.");
     }
   };
@@ -274,9 +314,9 @@ const SpeakingPlayground = ({ test }) => {
       // Check if we can access camera without prompting
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480 },
-        audio: true
+        audio: true,
       });
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       return true;
     } catch (error) {
       return false;
@@ -318,10 +358,12 @@ const SpeakingPlayground = ({ test }) => {
     } catch (error) {
       console.warn("Student camera permission still denied:", error);
       let errorMessage = "Camera permission is still blocked.";
-      if (error.name === 'NotAllowedError') {
-        errorMessage = "Camera/microphone access denied. Please:\n1. Click the camera icon in your browser's address bar\n2. Select 'Allow' for camera and microphone\n3. Refresh the page and try again";
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = "No camera/microphone found. Please connect a camera and microphone.";
+      if (error.name === "NotAllowedError") {
+        errorMessage =
+          "Camera/microphone access denied. Please:\n1. Click the camera icon in your browser's address bar\n2. Select 'Allow' for camera and microphone\n3. Refresh the page and try again";
+      } else if (error.name === "NotFoundError") {
+        errorMessage =
+          "No camera/microphone found. Please connect a camera and microphone.";
       }
       setPermissionError(errorMessage);
     }
@@ -374,14 +416,19 @@ const SpeakingPlayground = ({ test }) => {
   const handleSubmitExam = async (auto = false) => {
     if (!auto && !window.confirm("Submit exam now?")) return;
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${test.assignmentId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "completed",
-          completedAt: new Date().toISOString(),
-        }),
-      });
+      await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/exam-assignments/${
+          test.assignmentId
+        }`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "completed",
+            completedAt: new Date().toISOString(),
+          }),
+        }
+      );
       // Close video call
       cleanupWebRTC();
       // In combined mode, don't navigate - let the parent handle it
@@ -402,7 +449,7 @@ const SpeakingPlayground = ({ test }) => {
       pcRef.current = null;
     }
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
     setRemoteStream(null);
@@ -411,10 +458,104 @@ const SpeakingPlayground = ({ test }) => {
   };
 
   const retryVideoCall = () => {
-    console.log('Student retrying video call setup');
+    console.log("Student retrying video call setup");
     cleanupWebRTC();
     setVideoCallError(null);
     // The video call will be re-initiated when agent sends new offer
+  };
+
+  // Camera and mic toggle functions
+  const toggleCamera = () => {
+    if (localStreamRef.current) {
+      const videoTracks = localStreamRef.current.getVideoTracks();
+      videoTracks.forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsCameraOn(!isCameraOn);
+    }
+  };
+
+  const toggleMic = () => {
+    if (localStreamRef.current) {
+      const audioTracks = localStreamRef.current.getAudioTracks();
+      audioTracks.forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsMicOn(!isMicOn);
+    }
+  };
+
+  // Draggable container handlers
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setContainerPosition({
+      x: e.clientX - dragOffset.x,
+      y: e.clientY - dragOffset.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Resize handlers
+  const handleResizeMouseDown = (e) => {
+    e.stopPropagation();
+    setIsResizing(true);
+    // Store initial mouse position and container size when starting resize
+    setDragOffset({
+      x: e.clientX,
+      y: e.clientY,
+    });
+    setLastSize(containerSize);
+  };
+
+  const handleResizeMouseMove = (e) => {
+    if (!isResizing) return;
+
+    // Calculate the difference between current mouse position and initial mouse position
+    const deltaX = e.clientX - dragOffset.x;
+    const deltaY = e.clientY - dragOffset.y;
+
+    // Calculate new width and height based on the difference
+    const newWidth = Math.max(200, lastSize.width + deltaX);
+    const newHeight = Math.max(150, lastSize.height + deltaY);
+
+    // Apply constraints
+    const maxWidth = window.innerWidth * 0.8;
+    const maxHeight = window.innerHeight * 0.8;
+
+    setContainerSize({
+      width: Math.min(newWidth, maxWidth),
+      height: Math.min(newHeight, maxHeight),
+    });
+  };
+
+  const handleResizeMouseUp = () => {
+    setIsResizing(false);
+  };
+
+  // Minimize/Maximize handlers
+  const handleMinimize = () => {
+    setIsMinimized(true);
+    // Store current position and size for restore
+    setLastPosition(containerPosition);
+    setLastSize(containerSize);
+  };
+
+  const handleMaximize = () => {
+    setIsMinimized(false);
+    setContainerPosition(lastPosition);
+    setContainerSize(lastSize);
   };
 
   // WebRTC functions
@@ -423,50 +564,57 @@ const SpeakingPlayground = ({ test }) => {
 
     const pc = new RTCPeerConnection({
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
-      ]
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+      ],
     });
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socketRef.current) {
-        console.log('Student: Sending ICE candidate');
-        socketRef.current.emit('ice', {
+        console.log("Student: Sending ICE candidate");
+        socketRef.current.emit("ice", {
           room: test.assignmentId,
-          candidate: event.candidate
+          candidate: event.candidate,
         });
       }
     };
 
     pc.ontrack = (event) => {
-      console.log('Student: Received remote stream from agent');
+      console.log("Student: Received remote stream from agent");
       setRemoteStream(event.streams[0]);
       setIsVideoCallActive(true);
       if (!examStartedRef.current) {
         examStartedRef.current = true;
-        console.log('Student: Starting exam after receiving remote stream');
+        console.log("Student: Starting exam after receiving remote stream");
         startExam();
       }
     };
 
     pc.onconnectionstatechange = () => {
-      console.log('Student: WebRTC connection state changed to:', pc.connectionState);
-      if (pc.connectionState === 'connected') {
+      console.log(
+        "Student: WebRTC connection state changed to:",
+        pc.connectionState
+      );
+      if (pc.connectionState === "connected") {
         setVideoCallError(null);
-        console.log('Student: Video call connected successfully');
-      } else if (pc.connectionState === 'connecting') {
-        console.log('Student: Video call connecting...');
-      } else if (pc.connectionState === 'disconnected') {
-        console.log('Student: Video call disconnected');
-        setVideoCallError('Video call disconnected');
+        console.log("Student: Video call connected successfully");
+      } else if (pc.connectionState === "connecting") {
+        console.log("Student: Video call connecting...");
+      } else if (pc.connectionState === "disconnected") {
+        console.log("Student: Video call disconnected");
+        setVideoCallError("Video call disconnected");
         setIsVideoCallActive(false);
-      } else if (pc.connectionState === 'failed') {
-        console.log('Student: Video call connection failed');
-        setVideoCallError('Video call connection failed');
+      } else if (pc.connectionState === "failed") {
+        console.log("Student: Video call connection failed");
+        setVideoCallError("Video call connection failed");
         setIsVideoCallActive(false);
       }
     };
@@ -477,35 +625,38 @@ const SpeakingPlayground = ({ test }) => {
 
   const startLocalVideo = async () => {
     if (localStreamRef.current) {
-      console.log('Student: Reusing existing local stream');
+      console.log("Student: Reusing existing local stream");
       return localStreamRef.current;
     }
 
     try {
-      console.log('Student: Requesting camera/microphone access');
+      console.log("Student: Requesting camera/microphone access");
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480 },
-        audio: true
+        audio: true,
       });
-      console.log('Student: Got media stream:', stream);
+      console.log("Student: Got media stream:", stream);
       localStreamRef.current = stream;
       setLocalStream(stream);
       setVideoCallError(null); // Clear any previous errors
-      console.log('Student: Local stream set successfully');
+      console.log("Student: Local stream set successfully");
       return stream;
     } catch (error) {
-      console.error('Student: Error accessing camera/microphone:', error);
-      let errorMessage = 'Unable to access camera and microphone.';
-      if (error.name === 'NotAllowedError') {
-        errorMessage = 'Camera/microphone access denied. Please allow access in your browser.';
+      console.error("Student: Error accessing camera/microphone:", error);
+      let errorMessage = "Unable to access camera and microphone.";
+      if (error.name === "NotAllowedError") {
+        errorMessage =
+          "Camera/microphone access denied. Please allow access in your browser.";
         setPermissionError(errorMessage);
         setShowPermissionModal(true);
-        console.log('Student: Showing permission modal due to access denied');
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No camera/microphone found. Please connect a camera and microphone.';
+        console.log("Student: Showing permission modal due to access denied");
+      } else if (error.name === "NotFoundError") {
+        errorMessage =
+          "No camera/microphone found. Please connect a camera and microphone.";
         setVideoCallError(errorMessage);
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Camera/microphone is already in use by another application.';
+      } else if (error.name === "NotReadableError") {
+        errorMessage =
+          "Camera/microphone is already in use by another application.";
         setVideoCallError(errorMessage);
       } else {
         setVideoCallError(errorMessage);
@@ -520,20 +671,20 @@ const SpeakingPlayground = ({ test }) => {
       setPeerConnection(pc);
 
       const stream = await startLocalVideo();
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
       if (socketRef.current) {
-        socketRef.current.emit('offer', {
+        socketRef.current.emit("offer", {
           room: test.assignmentId,
-          offer: offer
+          offer: offer,
         });
       }
     } catch (error) {
-      console.error('Error creating offer:', error);
-      setVideoCallError('Failed to start video call');
+      console.error("Error creating offer:", error);
+      setVideoCallError("Failed to start video call");
     }
   };
 
@@ -542,77 +693,87 @@ const SpeakingPlayground = ({ test }) => {
       const candidate = iceCandidatesQueueRef.current.shift();
       try {
         await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-        console.log('Student: Queued ICE candidate added');
+        console.log("Student: Queued ICE candidate added");
       } catch (error) {
-        console.error('Student: Error adding queued ICE candidate:', error);
+        console.error("Student: Error adding queued ICE candidate:", error);
       }
     }
   };
 
   const handleOffer = async (data) => {
     try {
-      console.log('Student: Received offer from agent, creating answer');
+      console.log("Student: Received offer from agent, creating answer");
       const pc = initializePeerConnection();
 
       // If already have remote description, ignore duplicate offers
       if (pc.remoteDescription) {
-        console.log('Student: Ignoring duplicate offer, already have remote description');
+        console.log(
+          "Student: Ignoring duplicate offer, already have remote description"
+        );
         return;
       }
 
-      console.log('Student: Starting local video for answer');
+      console.log("Student: Starting local video for answer");
       const stream = await startLocalVideo();
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      console.log('Student: Setting remote description');
-      await pc.setRemoteDescription(new RTCSessionDescription({type: 'offer', sdp: data.sdp}));
-      console.log('Student: Creating answer');
+      console.log("Student: Setting remote description");
+      await pc.setRemoteDescription(
+        new RTCSessionDescription({ type: "offer", sdp: data.sdp })
+      );
+      console.log("Student: Creating answer");
       const answer = await pc.createAnswer();
-      console.log('Student: Setting local description');
+      console.log("Student: Setting local description");
       await pc.setLocalDescription(answer);
 
       await processQueuedIceCandidates();
 
-      console.log('Student: Sending answer to agent');
+      console.log("Student: Sending answer to agent");
       if (socketRef.current) {
-        socketRef.current.emit('answer', {
+        socketRef.current.emit("answer", {
           room: test.assignmentId,
-          sdp: answer.sdp
+          sdp: answer.sdp,
         });
-        console.log('Student: Answer sent successfully');
+        console.log("Student: Answer sent successfully");
       }
     } catch (error) {
-      console.error('Student: Error handling offer:', error);
-      setVideoCallError('Failed to join video call. Please check camera permissions.');
+      console.error("Student: Error handling offer:", error);
+      setVideoCallError(
+        "Failed to join video call. Please check camera permissions."
+      );
     }
   };
 
   const handleAnswer = async (data) => {
     try {
-      console.log('Student: Received answer from agent');
+      console.log("Student: Received answer from agent");
       if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: data.sdp}));
-        console.log('Student: Remote description set for answer');
+        await peerConnection.setRemoteDescription(
+          new RTCSessionDescription({ type: "answer", sdp: data.sdp })
+        );
+        console.log("Student: Remote description set for answer");
       }
     } catch (error) {
-      console.error('Student: Error handling answer:', error);
+      console.error("Student: Error handling answer:", error);
     }
   };
 
   const handleIceCandidate = async (data) => {
     try {
-      console.log('Student: Received ICE candidate from agent');
+      console.log("Student: Received ICE candidate from agent");
       if (pcRef.current && data.candidate) {
         if (pcRef.current.remoteDescription) {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-          console.log('Student: ICE candidate added');
+          await pcRef.current.addIceCandidate(
+            new RTCIceCandidate(data.candidate)
+          );
+          console.log("Student: ICE candidate added");
         } else {
           iceCandidatesQueueRef.current.push(data.candidate);
-          console.log('Student: ICE candidate queued');
+          console.log("Student: ICE candidate queued");
         }
       }
     } catch (error) {
-      console.error('Student: Error handling ICE candidate:', error);
+      console.error("Student: Error handling ICE candidate:", error);
     }
   };
 
@@ -686,158 +847,210 @@ const SpeakingPlayground = ({ test }) => {
   const passage = currentUnit.passages[currentPassage];
 
   return (
-    <div className="min-h-screen  bg-gray-50 ">
+    <div className="min-h-screen ">
+
+<div className=" min-h-screen overflow-auto">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left column: Video Call */}
-        <aside className="lg:col-span-3 w-full h-screen p-4 bg-[#F2F2F2] flex flex-col">
-
-          {/* Video Feeds */}
-          {(isVideoCallActive || localStream) && (
-            <div className="flex-1 space-y-4">
-              {/* Agent Video (Remote) */}
-              {isVideoCallActive && (
-                <div className="bg-black rounded-lg overflow-hidden">
-                  <div className="p-2 bg-gray-800 text-white text-sm font-medium">
-                    Agent
-                  </div>
-                  <video
-                    ref={remoteVideoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full h-48 object-cover"
-                  />
-                </div>
-              )}
-
-              {/* Student Video (Local) */}
-              {localStream && (
-                <div className="bg-black rounded-lg overflow-hidden">
-                  <div className="p-2 bg-gray-800 text-white text-sm font-medium">
-                    You ({studentName})
-                  </div>
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-32 object-cover"
-                  />
-                </div>
-              )}
+        {/* Draggable Video Container */}
+        <div
+          className={`fixed bg-white rounded-xl shadow-lg border border-gray-300 ${
+            isMinimized ? "hidden" : ""
+          }`}
+          style={{
+            left: `${containerPosition.x}px`,
+            top: `${containerPosition.y}px`,
+            zIndex: 9999,
+            width: `${containerSize.width}px`,
+            height: `${containerSize.height}px`,
+            userSelect: "none",
+            minWidth: "200px",
+            minHeight: "400px",
+            maxWidth: "80vw",
+            maxHeight: "80vh",
+          }}
+          onMouseMove={(e) => {
+            handleMouseMove(e);
+            handleResizeMouseMove(e);
+          }}
+          onMouseUp={() => {
+            handleMouseUp();
+            handleResizeMouseUp();
+          }}
+          onMouseLeave={() => {
+            handleMouseUp();
+            handleResizeMouseUp();
+          }}
+        >
+          {/* Top Control Bar */}
+          <div
+            onMouseDown={handleMouseDown}
+            className="flex items-center justify-between px-3 py-2 bg-gray-100 border-b border-gray-300 cursor-move rounded-t-xl"
+          >
+            {/* Left: App / Title */}
+            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+              <GripHorizontal size={16} className="text-gray-500" />
+              Peoplecert
             </div>
-          )}
 
-          {/* Waiting Section */}
-          {waitingForAgent && !permissionGranted && !isVideoCallActive && (
-            <div className="flex flex-col items-center justify-center flex-1 gap-6">
-              <div className="animate-pulse text-gray-500 text-lg text-center">
-                Waiting for agent permission to start the exam... 0001
-              </div>
+            {/* Right: Controls */}
+            <div className="flex items-center gap-3">
+              {/* Minimize */}
+              <button
+                onClick={handleMinimize}
+                className="hover:text-gray-500 transition"
+                title="Minimize"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M5 12h14" />
+                </svg>
+              </button>
 
-              <div className="text-center text-sm">
-                {socketConnected ? (
-                  <p className="text-green-600 font-semibold">
-                    Connected to server. Awaiting permission…
-                  </p>
+              {/* Camera */}
+              <button
+                onClick={toggleCamera}
+                className="hover:text-red-500 transition"
+                title="Toggle Camera"
+              >
+                {isCameraOn ? (
+                  <Video size={18} className="text-gray-700" />
                 ) : (
-                  <p className="text-gray-600">Connecting to server...</p>
+                  <VideoOff size={18} className="text-red-500" />
                 )}
-              </div>
+              </button>
+
+              {/* Mic */}
+              <button
+                onClick={toggleMic}
+                className="hover:text-red-500 transition"
+                title="Toggle Mic"
+              >
+                {isMicOn ? (
+                  <Mic size={18} className="text-gray-700" />
+                ) : (
+                  <MicOff size={18} className="text-red-500" />
+                )}
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* Video Call Connecting */}
-          {permissionGranted && !isVideoCallActive && !videoCallError && (
-            <div className="flex flex-col items-center justify-center flex-1 gap-6">
-              <div className="animate-pulse text-blue-500 text-lg text-center">
-                Establishing video call...
+          {/* Video Area */}
+          <div className="p-2 space-y-2 rounded-b-xl h-[calc(100%-42px)]">
+            {/* Agent Video */}
+            {isVideoCallActive && (
+              <div className="relative rounded-lg overflow-hidden  h-[50%]">
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                  Agent
+                </span>
               </div>
-              <div className="text-center text-sm text-gray-600">
-                Please wait while we connect you with the agent
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Video Call Error */}
-          {videoCallError && (
-            <div className="flex flex-col items-center justify-center flex-1 gap-6">
-              <div className="text-red-500 text-lg text-center">
-                Video Call Error
+            {/* Student Video */}
+            {localStream && (
+              <div className="relative rounded-lg overflow-hidden h-[50%]">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                  You
+                </span>
               </div>
-              <div className="text-center text-sm text-gray-600">
-                {videoCallError}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={retryVideoCall}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  Retry Video Call
-                </button>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-                >
-                  Reload Page
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Exam Controls (shown when video is active or permission granted) */}
-          {(permissionGranted || isVideoCallActive) && !videoCallError && (
-            <div className="space-y-4 mt-4">
-              <div className="border-t border-gray-200 pt-4">
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-sm text-gray-500">Exam Status</div>
-                    <div className="text-sm font-medium">
-                      {examStarted
-                        ? examEnded
-                          ? "Ended"
-                          : "In progress"
-                        : isVideoCallActive
-                        ? "Video connected - Ready to start"
-                        : "Permission granted"}
-                    </div>
-                  </div>
+          {/* Resize Handle */}
+          <div
+            onMouseDown={handleResizeMouseDown}
+            className="absolute bottom-0 right-0 w-6 h-6 bg-gray-300 cursor-se-resize rounded-br-xl hover:bg-gray-400 transition-colors flex items-center justify-center"
+            title="Resize"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M21 15l-6 6M15 15l6 6M9 3l-6 6M3 3l6 6" />
+            </svg>
+          </div>
+        </div>
 
-                  {examStarted && (
-                    <div>
-                      <div className="text-sm text-gray-500">Time Left</div>
-                      <div className="text-xl font-mono">
-                        {formatTime(timeLeft)}
-                      </div>
-                    </div>
-                  )}
+        {/* Minimized Panel */}
+        {isMinimized && (
+          <div
+            className="fixed left-4 bottom-4 bg-white rounded-lg shadow-lg border border-gray-300 p-2 flex flex-col gap-2"
+            style={{ zIndex: 9999 }}
+          >
+            {/* Camera */}
+            <button
+              onClick={toggleCamera}
+              className="p-2 hover:bg-gray-100 rounded transition"
+              title="Toggle Camera"
+            >
+              {isCameraOn ? (
+                <Video size={20} className="text-gray-700" />
+              ) : (
+                <VideoOff size={20} className="text-red-500" />
+              )}
+            </button>
 
-                  <div className="flex gap-2">
-                    {!examStarted && isVideoCallActive && (
-                      <button
-                        onClick={startExam}
-                        className="flex-1 bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 text-sm"
-                      >
-                        Start Exam
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleSubmitExam(false)}
-                      className="flex-1 bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 text-sm"
-                    >
-                      Submit
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </aside>
+            {/* Mic */}
+            <button
+              onClick={toggleMic}
+              className="p-2 hover:bg-gray-100 rounded transition"
+              title="Toggle Mic"
+            >
+              {isMicOn ? (
+                <Mic size={20} className="text-gray-700" />
+              ) : (
+                <MicOff size={20} className="text-red-500" />
+              )}
+            </button>
+
+            {/* Maximize */}
+            <button
+              onClick={handleMaximize}
+              className="p-2 hover:bg-gray-100 rounded transition"
+              title="Restore"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Right column: speaking content */}
-        <main className="lg:col-span-9 w-full h-screen p-3 flex flex-col">
+        <main className="lg:col-span-12 w-full h-screen p-3 flex flex-col">
           <div className="flex-1 flex flex-col">
             <header className="flex items-start justify-between mb-6">
-              <div >
+              <div>
                 <h1 className="text-2xl font-semibold text-gray-800">
                   {paper.title || "speaking Exam"}
                 </h1>
@@ -849,22 +1062,24 @@ const SpeakingPlayground = ({ test }) => {
               <div className="text-right">
                 {agentSelected && (
                   <>
-                 <div className="flex items-end gap-4">
-                 <span>
-                      <div className="text-sm text-gray-500">Section</div>
-                      <div className="font-medium text-gray-800">
-                        {currentSection + 1} / {units.length}
-                      </div>
-                    </span>
-                    <span>
-                      {" "}
-                      <div className="text-sm text-gray-500 mt-2">Passage</div>
-                      <div className="font-medium text-gray-800">
-                        {currentPassage + 1 || 0} /{" "}
-                        {currentUnit.passages.length || 0}
-                      </div>
-                    </span>
-                 </div>
+                    <div className="flex items-end gap-4">
+                      <span>
+                        <div className="text-sm text-gray-500">Section</div>
+                        <div className="font-medium text-gray-800">
+                          {currentSection + 1} / {units.length}
+                        </div>
+                      </span>
+                      <span>
+                        {" "}
+                        <div className="text-sm text-gray-500 mt-2">
+                          Passage
+                        </div>
+                        <div className="font-medium text-gray-800">
+                          {currentPassage + 1 || 0} /{" "}
+                          {currentUnit.passages.length || 0}
+                        </div>
+                      </span>
+                    </div>
                   </>
                 )}
               </div>
@@ -878,7 +1093,15 @@ const SpeakingPlayground = ({ test }) => {
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">
                       {passage.title || `Passage ${currentPassage + 1}`}
                     </h2>
-                    <div className="text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: passage.content || passage.text || 'No passage content.' }} />
+                    <div
+                      className="text-gray-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{
+                        __html:
+                          passage.content ||
+                          passage.text ||
+                          "No passage content.",
+                      }}
+                    />
                   </>
                 ) : (
                   <p className="text-gray-500">
@@ -937,13 +1160,18 @@ const SpeakingPlayground = ({ test }) => {
                   How to enable camera:
                 </h4>
                 <ol className="text-sm text-blue-700 list-decimal list-inside space-y-1">
-                  <li>Click the camera icon 🔴/🔵 in your browser's address bar</li>
-                  <li>Select "Allow" or "Always allow" for camera and microphone</li>
+                  <li>
+                    Click the camera icon 🔴/🔵 in your browser's address bar
+                  </li>
+                  <li>
+                    Select "Allow" or "Always allow" for camera and microphone
+                  </li>
                   <li>Refresh the page if needed</li>
                   <li>Click "Try Again" to retry the video call</li>
                 </ol>
                 <p className="text-xs text-blue-600 mt-2">
-                  If you already allowed permissions but still see this error, try refreshing the page.
+                  If you already allowed permissions but still see this error,
+                  try refreshing the page.
                 </p>
               </div>
             </div>
@@ -965,6 +1193,7 @@ const SpeakingPlayground = ({ test }) => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

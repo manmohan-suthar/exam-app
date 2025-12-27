@@ -382,7 +382,9 @@ const AgentDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+   <div className="min-h-screen bg-gray-50">
+
+<div className="min-h-screen overflow-auto" >
       {/* Video Call Section */}
       {activeVideoCallExam && (
         <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4">
@@ -696,6 +698,7 @@ const AgentDashboard = () => {
         </div>
       </div>
     </div>
+   </div>
     
   );
 };

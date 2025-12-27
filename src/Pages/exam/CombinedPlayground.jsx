@@ -12,7 +12,7 @@ import SubFooter from "./ExamComponents/SubFooter";
 const CombinedPlayground = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { exams, assignments } = location.state || {};
+  const { exams, assignments, initialModule } = location.state || {};
 
   const [activeModule, setActiveModule] = useState("listening");
   const [activePart, setActivePart] = useState(0);
@@ -22,6 +22,7 @@ const CombinedPlayground = () => {
   const completedPartsRef = useRef([]);
   const [listeningCompleted, setListeningCompleted] = useState(false);
   const [readingCompleted, setReadingCompleted] = useState(false);
+  const [speakingCurrentSection, setSpeakingCurrentSection] = useState(0);
 
   // Memoize the modules data to prevent unnecessary re-renders
   const memoizedModulesData = React.useMemo(() => modulesData, [modulesData]);
@@ -231,6 +232,22 @@ const CombinedPlayground = () => {
     fetchModulesData();
   }, [exams, assignments, navigate]);
 
+  // Handle initial module navigation (for speaking exams)
+  useEffect(() => {
+    if (initialModule && modulesData.length > 0) {
+      const moduleData = modulesData.find(m => m.key === initialModule);
+      if (moduleData) {
+        setActiveModule(initialModule);
+        setActivePart(0);
+        if (moduleData.timing) {
+          setTimeLeft(moduleData.timing * 60);
+        } else {
+          setTimeLeft(null);
+        }
+      }
+    }
+  }, [initialModule, modulesData]);
+
   // Timer countdown
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0) return;
@@ -361,7 +378,10 @@ useEffect(() => {
           />
         );
       case "speaking":
-        return <SpeakingPlayground test={examData} />;
+        return <SpeakingPlayground
+          test={examData}
+          onSectionChange={setSpeakingCurrentSection}
+        />;
       default:
         return <div>Select a module</div>;
     }
@@ -390,19 +410,21 @@ useEffect(() => {
           <div className="absolute left-1/2 transform -translate-x-1/2 text-center">
             <h1 className="text-[12px] font-medium">
               <span className="font-bold">LanguageCert Academic System</span>{" "}
-              (Listening, Reading, Writing)
+              {activeModule === "speaking"
+                ? "(Speaking)"
+                : "(Listening, Reading, Writing)"
+              }
             </h1>
           </div>
 
           {/* Right Section */}
           {/* <div className=" font-mono text-[13px] font-semibold   text-white">
-            {timeLeft !== null && activeModule !== "listening" && (
+            {timeLeft !== null && (
               <div className="bg-[#FF3200]  flex items-center gap-2  pl-5 pr-5">
                  {formatTime(timeLeft)}
                  <Clock6 size={16}/>
               </div>
             )}
-
           </div> */}
         </div>
         
@@ -420,6 +442,7 @@ useEffect(() => {
             completedParts={activeModule === "listening" ? completedPartsListening : []}
             allListeningCompleted={listeningCompleted}
             allReadingCompleted={readingCompleted}
+            speakingCurrentSection={speakingCurrentSection}
           />
         </div>
 

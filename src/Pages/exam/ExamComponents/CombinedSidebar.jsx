@@ -9,6 +9,7 @@ const CombinedSidebar = React.memo(({
   completedParts = [],
   allListeningCompleted = false,
   allReadingCompleted = false,
+  speakingCurrentSection = 0, // Admin-controlled speaking section
 }) => {
   if (!modulesData || modulesData.length === 0) {
     return (
@@ -53,8 +54,10 @@ const CombinedSidebar = React.memo(({
 
               <div className="flex flex-col gap-0.5 pl-5">
                 {module.parts.map((part, idx) => {
-                  const isPartActive =
-                    isModuleActive && activePart === idx;
+                  // For speaking module, use admin-controlled section instead of activePart
+                  const isPartActive = module.key === "speaking"
+                    ? speakingCurrentSection === idx
+                    : isModuleActive && activePart === idx;
 
                   const isCompleted = isPartCompleted(
                     module.key,
@@ -64,7 +67,7 @@ const CombinedSidebar = React.memo(({
                   let isDisabled = false;
                   if (module.key === "reading" && !allListeningCompleted) isDisabled = true;
                   if (module.key === "writing" && !allReadingCompleted) isDisabled = true;
-        
+      
                   // For listening module: disable upcoming parts until current part is completed
                   if (module.key === "listening" && activeModule === "listening") {
                     // Disable all parts after the current active part
@@ -76,7 +79,12 @@ const CombinedSidebar = React.memo(({
                       isDisabled = !isPartCompleted(module.key, idx);
                     }
                   }
-        
+      
+                  // For speaking module: always disable for students (admin-controlled only)
+                  if (module.key === "speaking") {
+                    isDisabled = true;
+                  }
+      
                   isDisabled = isDisabled || (isCompleted && !isPartActive);
 
                   return (
@@ -93,12 +101,12 @@ const CombinedSidebar = React.memo(({
                       }}
                       className={`relative text-left border p-1 text-[13px] transition-all
                         ${
-                          isDisabled
+                          isPartActive
+                            ? "bg-[#FF3200] text-white"
+                            : isDisabled
                             ? isCompleted
                               ? "bg-[#FF3200] text-white cursor-not-allowed "
                               : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-                            : isPartActive
-                            ? "bg-[#FF3200] text-white"
                             : isCompleted
                             ? "bg-green-500 text-white cursor-not-allowed"
                             : "bg-gray-100 text-gray-800 hover:bg-gray-200"

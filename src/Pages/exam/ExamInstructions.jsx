@@ -43,8 +43,22 @@ const ExamInstructions = () => {
 
 
   const handleStartExam = () => {
-    // Navigate to combined playground with all exam data
-    navigate("/exam/combined-playground", { state: { exams, assignments } });
+    // Check if any exam is speaking type
+    const hasSpeakingExam = exams?.some(exam => exam.skill === "speaking");
+    
+    if (hasSpeakingExam) {
+      // Navigate directly to speaking interface within combined playground
+      navigate("/exam/combined-playground", {
+        state: {
+          exams,
+          assignments,
+          initialModule: "speaking"
+        }
+      });
+    } else {
+      // Navigate to combined playground with all exam data
+      navigate("/exam/combined-playground", { state: { exams, assignments } });
+    }
   };
 
   const handleBack = () => {
