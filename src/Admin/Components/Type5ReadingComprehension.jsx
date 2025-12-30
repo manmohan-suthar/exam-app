@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, Check } from 'lucide-react';
 
 const Type5ReadingComprehension = ({ question, onUpdate, onDelete, index }) => {
@@ -22,6 +22,28 @@ const Type5ReadingComprehension = ({ question, onUpdate, onDelete, index }) => {
       }
     ]
   });
+
+  useEffect(() => {
+    setEditData({
+      question: question.question || '',
+      instructions: question.instructions || 'Read the article about intelligence and ageing and answer the questions.',
+      comprehensionQuestions: question.comprehensionQuestions || [
+        {
+          questionNumber: 1,
+          question: '',
+          questionType: 'multiple_choice',
+          options: [
+            { letter: 'A', text: '' },
+            { letter: 'B', text: '' },
+            { letter: 'C', text: '' },
+            { letter: 'D', text: '' }
+          ],
+          correctAnswer: '',
+          maxWords: 3
+        }
+      ]
+    });
+  }, [question]);
 
   const handleSave = () => {
     if (!editData.question.trim()) {

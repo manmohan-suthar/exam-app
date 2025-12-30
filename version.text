@@ -1,2 +1,6 @@
 v1.0.2
 v1.1.2 = main admin update password smtp or reading ke part chnage kiye hai 21-12-25 5:15PM
+v1.2.0 = add video call function in workingg 27-12-25
+
+PS E:\Online-Exam\peoplecert> git tag v1.2.0
+PS E:\Online-Exam\peoplecert> git push origin v1.2.0

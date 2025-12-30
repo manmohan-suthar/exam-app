@@ -88,3 +88,14 @@ body {
   cursor: grabbing;
 }
 
+.ql-container {
+  height: 400px;
+}
+
+.ql-editor {
+  min-height: 350px;
+  font-size: 16px;
+}
+.quill-editor {
+  height: 400px;
+}

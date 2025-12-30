@@ -134,7 +134,7 @@ const ReadingPapersBuilder = () => {
         }
       });
 
-      // Group type2_gap_fill questions back into single questions (type5 are already grouped)
+      // Group type2_gap_fill questions back into single questions
       units.forEach((unit, unitIndex) => {
         const groupedQuestions = [];
         const type2Gaps = unit.questions.filter(q => q.type === 'type2_gap_fill');
@@ -164,7 +164,35 @@ const ReadingPapersBuilder = () => {
           groupedQuestions.push(type2Question);
         }
 
-        groupedQuestions.push(...otherQuestions);
+        // Group type5_reading_comprehension questions back into single questions
+        const type5Questions = otherQuestions.filter(q => q.type === 'type5_reading_comprehension');
+        const remainingQuestions = otherQuestions.filter(q => q.type !== 'type5_reading_comprehension');
+
+        if (type5Questions.length > 0) {
+          const sortedType5 = type5Questions.sort((a, b) => a.order - b.order);
+          const comprehensionQuestions = sortedType5.map((q, idx) => ({
+            questionNumber: idx + 1,
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            maxWords: q.maxWords || 3,
+            questionType: q.questionType || 'multiple_choice'
+          }));
+
+          const passage = paperWithUnits.passages ? paperWithUnits.passages[unitIndex] : null;
+          const article = passage ? passage.content || '' : '';
+
+          const type5Question = {
+            type: 'type5_reading_comprehension',
+            question: article,
+            comprehensionQuestions: comprehensionQuestions,
+            unitNumber: unit.unitNumber,
+            order: sortedType5[0].order
+          };
+          groupedQuestions.push(type5Question);
+        }
+
+        groupedQuestions.push(...remainingQuestions);
         unit.questions = groupedQuestions.sort((a, b) => a.order - b.order);
       });
     }
@@ -1023,7 +1051,7 @@ const ReadingPapersBuilder = () => {
                     title="Type 1: Word Replacement"
                   >
                     <CheckSquare size={14} />
-                    Type 1
+                    MCQ
                   </button>
                   <button
                     onClick={() => addQuestionToUnit('type2_gap_fill')}
@@ -1031,7 +1059,7 @@ const ReadingPapersBuilder = () => {
                     title="Type 2: Gap Fill"
                   >
                     <Type size={14} />
-                    Type 2
+                    Gap Fill
                   </button>
                   <button
                     onClick={() => addQuestionToUnit('type3_sentence_completion')}
@@ -1039,7 +1067,7 @@ const ReadingPapersBuilder = () => {
                     title="Type 3: Sentence Completion"
                   >
                     <FileTextIcon size={14} />
-                    Type 3
+                    Sentence Completion
                   </button>
                   <button
                     onClick={() => addQuestionToUnit('type4_matching_headings')}
@@ -1047,7 +1075,7 @@ const ReadingPapersBuilder = () => {
                     title="Type 4: Matching Headings"
                   >
                     <Target size={14} />
-                    Type 4
+                    Matching Headings
                   </button>
                   <button
                     onClick={() => addQuestionToUnit('type5_reading_comprehension')}
@@ -1055,7 +1083,7 @@ const ReadingPapersBuilder = () => {
                     title="Type 5: Reading Comprehension"
                   >
                     <BookOpen size={14} />
-                    Type 5
+                    Article/Paragraph MCQ
                   </button>
                 </div>
               </div>
