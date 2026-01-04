@@ -9,204 +9,195 @@ import { Plus, Save, Eye, Trash2, Edit, FileText } from 'lucide-react';
 const SpeakingPapersBuilder = () => {
   const [papers, setPapers] = useState([]);
   const [currentPaper, setCurrentPaper] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); 
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('list'); // 'list', 'builder', or 'preview'
   const [currentUnit, setCurrentUnit] = useState(1); // Current unit number (1-4)
   const [currentPassage, setCurrentPassage] = useState(0); // Current passage index within unit
-  const [content, setContent] = useState('');
+  const isUpdatingContent = useRef(false);
+
+  // Function to commit current Quill content to state
+  const commitCurrentPassage = () => {
+    if (!quillInstance.current || !currentPaper) return;
+    const html = quillInstance.current.root.innerHTML;
+    setCurrentPaper(prev => {
+      if (!prev) return prev;
+      const updatedUnits = prev.units.map(unit => {
+        if (unit.unitNumber === currentUnit) {
+          const updatedPassages = unit.passages.map((passage, i) =>
+            i === currentPassage ? { ...passage, content: html, unitNumber: currentUnit } : passage
+          );
+          return { ...unit, passages: updatedPassages };
+        }
+        return unit;
+      });
+      return { ...prev, units: updatedUnits };
+    });
+  };
 
   useEffect(() => {
     fetchPapers();
   }, []);
 
-
-
+  // Initialize Quill editor with proper cleanup and state management
   const editorRef = useRef(null);
-const quillInstance = useRef(null);
-const isSettingContent = useRef(false);
-const textChangeHandlerRef = useRef(null);
+  const quillInstance = useRef(null);
+  const isSettingContent = useRef(false);
+  const textChangeHandlerRef = useRef(null);
+  const contentUpdateTimeoutRef = useRef(null);
 
-const ImageHandler = async () => {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "image/*";
-  input.click();
+  const ImageHandler = async () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.click();
 
-  input.onchange = async () => {
-    const file = input.files?.[0];
-    if (!file || !currentPaper?._id) return;
-
-    const formData = new FormData();
-    formData.append("image", file);
-    formData.append("unitNumber", currentUnit);
-    formData.append("passageIndex", currentPassage);
-
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/admin/speaking-papers/${currentPaper._id}/upload-image`,
-        { method: "POST", body: formData }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error("Upload failed");
-
-      const imageUrl = `${import.meta.env.VITE_API_BASE_URL}/${data.image.path}`;
-
-      const quill = quillInstance.current;
-      const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
-      quill.insertEmbed(range.index, "image", imageUrl, "user");
-      quill.setSelection(range.index + 1);
-    } catch (err) {
-      console.error(err);
-      alert("Image upload failed");
-    }
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+  
+      const formData = new FormData();
+      formData.append("image", file);
+      // optional: group uploads under a folder
+      formData.append("prefix", "student-editor");
+  
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/admin/uploads/image`,
+          { method: "POST", body: formData }
+        );
+  
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Upload failed");
+  
+        const imageUrl = data?.image?.url;
+        if (!imageUrl) throw new Error("No image URL returned");
+  
+        const quill = quillInstance.current;
+        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        quill.insertEmbed(range.index, "image", imageUrl, "user");
+        quill.setSelection(range.index + 1);
+      } catch (err) {
+        console.error("Image upload failed:", err);
+        // TODO: show a toast/snackbar
+      } finally {
+        input.value = "";
+      }
+    };
   };
-};
 
-useEffect(() => {
-  if (
-    activeTab === "builder" &&
-    currentPaper &&
-    currentPaper.units &&
-    currentPaper.units[0].passages.length === 0
-  ) {
-    addPassageToCurrentSection();
-  }
-}, [activeTab, currentPaper]);
+  // Auto-add first passage when entering builder mode
+  useEffect(() => {
+    if (
+      activeTab === "builder" &&
+      currentPaper &&
+      currentPaper.units &&
+      currentPaper.units[0].passages.length === 0
+    ) {
+      addPassageToCurrentSection();
+    }
+  }, [activeTab, currentPaper]);
 
+  // Initialize and manage Quill editor
+  useEffect(() => {
+    if (activeTab !== "builder") return;
+    if (!editorRef.current) return;
 
-useEffect(() => {
-  if (activeTab !== "builder") return;
-  if (!editorRef.current) return;
+    // If already initialized on same container, do nothing
+    if (
+      quillInstance.current &&
+      quillInstance.current.container === editorRef.current
+    ) {
+      return;
+    }
 
-  // ✅ If already initialized on same container, do nothing
-  if (
-    quillInstance.current &&
-    quillInstance.current.container === editorRef.current
-  ) {
-    return;
-  }
+    // Cleanup old instance if container changed
+    if (quillInstance.current && textChangeHandlerRef.current) {
+      quillInstance.current.off("text-change", textChangeHandlerRef.current);
+      quillInstance.current = null;
+    }
 
-  // 🧹 Cleanup old instance if container changed
-  if (quillInstance.current && textChangeHandlerRef.current) {
-    quillInstance.current.off("text-change", textChangeHandlerRef.current);
-    quillInstance.current = null;
-  }
-
-  const q = new Quill(editorRef.current, {
-    theme: "snow",
-    placeholder: "Write your speaking passage here...",
-    modules: {
-      toolbar: {
-        container: [
-          [{ header: [1, 2, 3, false] }],
-          ["bold", "italic", "underline"],
-          [{ list: "ordered" }, { list: "bullet" }],
-          ["link", "image"],
-        ],
-        handlers: {
-          image: ImageHandler,
+    const q = new Quill(editorRef.current, {
+      theme: "snow",
+      placeholder: "Write your speaking passage here...",
+      modules: {
+        toolbar: {
+          container: [
+            [{ header: [1, 2, 3, false] }],
+            ["bold", "italic", "underline"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            ["link", "image"],
+          ],
+          handlers: {
+            image: ImageHandler,
+          },
         },
       },
-    },
-  });
+    });
 
-  const onChange = () => {
-    if (isSettingContent.current) return;
-    const html = q.root.innerHTML;
-    setContent(html);
-    updatePassage(currentPassage, { content: html });
-  };
+    const onChange = () => {
+        if (isSettingContent.current || isUpdatingContent.current) return;
+        const html = q.root.innerHTML;
+        // Debounce content updates to prevent excessive re-renders
+        clearTimeout(contentUpdateTimeoutRef.current);
+        contentUpdateTimeoutRef.current = setTimeout(() => {
+          updatePassage(currentPassage, { content: html });
+        }, 300); // 300ms debounce
+      };
 
-  q.on("text-change", onChange);
-  textChangeHandlerRef.current = onChange;
-  quillInstance.current = q;
+    q.on("text-change", onChange);
+    textChangeHandlerRef.current = onChange;
+    quillInstance.current = q;
 
-  // ✅ Load current passage content
-  const unit = currentPaper?.units?.find(u => u.unitNumber === currentUnit);
-  const passage = unit?.passages?.[currentPassage];
+    // Load current passage content
+    const unit = currentPaper?.units?.find(u => u.unitNumber === currentUnit);
+    const passage = unit?.passages?.[currentPassage];
 
-  isSettingContent.current = true;
-  q.clipboard.dangerouslyPasteHTML(passage?.content || "");
-  q.setSelection(q.getLength(), 0);
-  isSettingContent.current = false;
+    isSettingContent.current = true;
+    // Only load actual content, not default placeholder
+    const contentToLoad = passage?.content || "";
+    // Remove default placeholder text if present
+    const cleanContent = contentToLoad.replace(/<p>Enter your speaking passage text here\.\.\.<\/p>/g, "");
+    q.clipboard.dangerouslyPasteHTML(cleanContent || "");
+    q.setSelection(q.getLength(), 0);
+    isSettingContent.current = false;
 
-  return () => {
-    if (q && textChangeHandlerRef.current) {
-      q.off("text-change", textChangeHandlerRef.current);
-      textChangeHandlerRef.current = null;
-    }
-  };
-}, [activeTab, currentUnit, currentPassage, currentPaper?._id]);
-useEffect(() => {
-  if (activeTab !== "builder") return;
-  if (!editorRef.current) return;
+    return () => {
+      if (q && textChangeHandlerRef.current) {
+        q.off("text-change", textChangeHandlerRef.current);
+        textChangeHandlerRef.current = null;
+      }
+      // Clear any pending title update timeouts
+      if (window.__titleUpdateTimeout) {
+        clearTimeout(window.__titleUpdateTimeout);
+        window.__titleUpdateTimeout = null;
+      }
+      // Clear any pending content update timeouts
+      if (contentUpdateTimeoutRef.current) {
+        clearTimeout(contentUpdateTimeoutRef.current);
+        contentUpdateTimeoutRef.current = null;
+      }
+    };
+  }, [activeTab, currentUnit, currentPassage, currentPaper?._id]);
 
-  if (
-    quillInstance.current &&
-    quillInstance.current.container === editorRef.current
-  ) return;
+  // Sync Quill content with current passage when switching passages
+  useEffect(() => {
+    if (!quillInstance.current) return;
 
-  if (quillInstance.current && textChangeHandlerRef.current) {
-    quillInstance.current.off("text-change", textChangeHandlerRef.current);
-    quillInstance.current = null;
-  }
+    const quill = quillInstance.current;
+    const unit = currentPaper?.units?.find(u => u.unitNumber === currentUnit);
+    const passage = unit?.passages?.[currentPassage];
 
-  const q = new Quill(editorRef.current, {
-    theme: "snow",
-    placeholder: "Write your speaking passage here...",
-    modules: {
-      toolbar: {
-        container: [
-          [{ header: [1, 2, 3, false] }],
-          ["bold", "italic", "underline"],
-          [{ list: "ordered" }, { list: "bullet" }],
-          ["link", "image"],
-        ],
-        handlers: {
-          image: ImageHandler,
-        },
-      },
-    },
-  });
-
-  const onChange = () => {
-    if (isSettingContent.current) return;
-    const html = q.root.innerHTML;
-    updatePassage(currentPassage, { content: html });
-  };
-
-  q.on("text-change", onChange);
-  textChangeHandlerRef.current = onChange;
-  quillInstance.current = q;
-
-  // load passage
-  const unit = currentPaper.units.find(u => u.unitNumber === currentUnit);
-  const passage = unit?.passages?.[currentPassage];
-
-  isSettingContent.current = true;
-  q.clipboard.dangerouslyPasteHTML(passage?.content || "");
-  isSettingContent.current = false;
-
-}, [activeTab]);
-
-
-useEffect(() => {
-  if (!quillInstance.current) return;
-
-  const quill = quillInstance.current;
-  const unit = currentPaper?.units?.find(u => u.unitNumber === currentUnit);
-  const passage = unit?.passages?.[currentPassage];
-
-  isSettingContent.current = true;
-  quill.setContents([]);
-  quill.clipboard.dangerouslyPasteHTML(passage?.content || "");
-  quill.setSelection(quill.getLength(), 0);
-  isSettingContent.current = false;
-
-  setContent(passage?.content || "");
-}, [currentUnit, currentPassage, currentPaper?._id]);
+    isSettingContent.current = true;
+    isUpdatingContent.current = true;
+    
+    quill.setContents([]);
+    quill.clipboard.dangerouslyPasteHTML(passage?.content || "");
+    quill.setSelection(quill.getLength(), 0);
+    
+    isSettingContent.current = false;
+    isUpdatingContent.current = false;
+  }, [currentUnit, currentPassage, currentPaper?._id]);
 
 
 
@@ -323,6 +314,23 @@ useEffect(() => {
     try {
       const admin = JSON.parse(localStorage.getItem('admin'));
 
+// 🔥 FORCE latest quill content before save
+if (quillInstance.current && activeTab === "builder") {
+  const html = quillInstance.current.root.innerHTML;
+
+  currentPaper.units = currentPaper.units.map(unit => {
+    if (unit.unitNumber === currentUnit) {
+      unit.passages = unit.passages.map((p, i) =>
+        i === currentPassage
+          ? { ...p, content: html }
+          : p
+      );
+    }
+    return unit;
+  });
+}
+
+
       // Flatten units structure to passages, preserving section context
       const flattenedPassages = [];
 
@@ -391,7 +399,7 @@ useEffect(() => {
 
     const newPassage = {
       title: `speaking Passage ${currentUnitData.passages.length + 1}`,
-      content: '<p>Enter your speaking passage text ...</p>', // Default content
+      content: '', // Empty content instead of placeholder
       images: [],
       order: currentUnitData.passages.length,
       unitNumber: currentUnit, // Explicitly set the section ID
@@ -411,7 +419,6 @@ useEffect(() => {
 
     // Automatically select the newly added passage
     setCurrentPassage(currentUnitData.passages.length);
-    setContent(newPassage.content);
   };
 
   const updatePassage = (index, updates) => {
@@ -427,6 +434,8 @@ useEffect(() => {
           }
         : unit
     );
+    
+    // Always update state for title changes and other updates
     setCurrentPaper({
       ...currentPaper,
       units: updatedUnits
@@ -473,20 +482,31 @@ useEffect(() => {
   };
 
   const showPreview = () => {
+    // Commit current content before switching to preview
+    if (activeTab === 'builder') {
+      commitCurrentPassage();
+    }
     setActiveTab('preview');
   };
 
-  const onContentChange = (event, editor) => {
-    const data = editor.getData();
-    setContent(data);
-    updatePassage(currentPassage, { content: data });
+  // Function to save current content before switching sections
+  const saveCurrentContent = () => {
+    if (activeTab === 'builder') {
+      commitCurrentPassage();
+    }
   };
+
 
   const publishPaper = async () => {
     const totalPassages = currentPaper.units?.reduce((total, unit) => total + (unit.passages?.length || 0), 0) || 0;
     if (totalPassages === 0) {
       alert('Please add at least one passage before publishing');
       return;
+    }
+
+    // Commit current content before publishing
+    if (activeTab === 'builder') {
+      commitCurrentPassage();
     }
 
     try {
@@ -621,7 +641,13 @@ useEffect(() => {
                   {currentPaper.units?.map((unit) => (
                     <button
                       key={unit.unitNumber}
-                      onClick={() => setCurrentUnit(unit.unitNumber)}
+                      onClick={() => {
+                        // Save current content before switching sections
+                        if (activeTab === 'builder') {
+                          saveCurrentContent();
+                        }
+                        setCurrentUnit(unit.unitNumber);
+                      }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         currentUnit === unit.unitNumber
                           ? 'bg-blue-600 text-white'
@@ -642,7 +668,13 @@ useEffect(() => {
                       return currentUnitData?.passages?.map((passage, idx) => (
                         <button
                           key={idx}
-                          onClick={() => setCurrentPassage(idx)}
+                          onClick={() => {
+                            // Save current content before switching passages
+                            if (activeTab === 'builder') {
+                              saveCurrentContent();
+                            }
+                            setCurrentPassage(idx);
+                          }}
                           className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
                             currentPassage === idx
                               ? 'bg-blue-100 text-blue-800'
@@ -866,7 +898,11 @@ useEffect(() => {
                 return currentUnitData?.passages?.map((passage, idx) => (
                   <div
                     key={idx}
-                    onClick={() => setCurrentPassage(idx)}
+                    onClick={() => {
+                      // Save current content before switching passages
+                      saveCurrentContent();
+                      setCurrentPassage(idx);
+                    }}
                     className={`p-3 rounded-lg cursor-pointer transition-colors border ${
                       currentPassage === idx
                         ? 'bg-blue-50 border-blue-300'
@@ -927,6 +963,8 @@ useEffect(() => {
                     <button
                       key={unitNum}
                       onClick={() => {
+                        // Save current content before switching sections
+                        saveCurrentContent();
                         setCurrentUnit(unitNum);
                         setCurrentPassage(0);
                       }}
@@ -994,9 +1032,17 @@ useEffect(() => {
           ?.find(u => u.unitNumber === currentUnit)
           ?.passages?.[currentPassage]?.title || ''
       }
-      onChange={(e) =>
-        updatePassage(currentPassage, { title: e.target.value })
-      }
+      onChange={(e) => {
+        // Use a debounced approach to prevent excessive re-renders
+        const newTitle = e.target.value;
+        if (!isSettingContent.current) {
+          // Debounce title updates to prevent rapid state changes
+          clearTimeout(window.__titleUpdateTimeout);
+          window.__titleUpdateTimeout = setTimeout(() => {
+            updatePassage(currentPassage, { title: newTitle });
+          }, 150); // 150ms debounce for title changes
+        }
+      }}
       className="text-xl font-semibold text-slate-800 bg-transparent border-none outline-none focus:bg-slate-50 px-2 py-1 rounded flex-1"
       placeholder="Passage title"
     />
@@ -1021,3 +1067,4 @@ useEffect(() => {
 };
 
 export default SpeakingPapersBuilder;
+

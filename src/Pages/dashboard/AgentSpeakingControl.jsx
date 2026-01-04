@@ -314,10 +314,12 @@ const AgentspeakingControl = () => {
 
   const saveSpeakingResult = async (resultData) => {
     try {
+      const token = localStorage.getItem('agentToken');
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/speakingresults`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           examId: examId,
@@ -1163,7 +1165,8 @@ const AgentspeakingControl = () => {
              const formData = new FormData(e.target);
              const resultData = {
                marks: formData.get('marks'),
-               feedback: formData.get('feedback')
+               feedback: formData.get('feedback'),
+               assignmentId: examId
              };
              saveSpeakingResult(resultData);
            }}>

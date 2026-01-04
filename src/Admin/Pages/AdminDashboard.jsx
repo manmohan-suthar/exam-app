@@ -82,6 +82,40 @@ const AdminDashboard = () => {
     }
   };
 
+  const createRegistration = async (newReg) => {
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/registrations`, newReg);
+      setRegistrations([...registrations, res.data.registration]);
+    } catch (error) {
+      console.error('Error creating registration:', error);
+      throw error; // To handle in component
+    }
+  };
+
+  const updateRegistration = async (id, updatedReg) => {
+    console.log('updateRegistration called with id:', id, 'updatedReg:', updatedReg);
+    try {
+      const response = await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/registrations/${id}`, updatedReg);
+      console.log('API response:', response);
+      setRegistrations(registrations.map(reg =>
+        reg._id === id ? { ...reg, ...updatedReg } : reg
+      ));
+    } catch (error) {
+      console.error('Error updating registration:', error);
+      throw error;
+    }
+  };
+
+  const deleteRegistration = async (id) => {
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/registrations/${id}`);
+      setRegistrations(registrations.filter(reg => reg._id !== id));
+    } catch (error) {
+      console.error('Error deleting registration:', error);
+      throw error;
+    }
+  };
+
   if (!admin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -152,7 +186,13 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'registrations' && (
-            <RegistrationsTable registrations={registrations} updateRegistrationStatus={updateRegistrationStatus} />
+            <RegistrationsTable
+              registrations={registrations}
+              updateRegistrationStatus={updateRegistrationStatus}
+              createRegistration={createRegistration}
+              updateRegistration={updateRegistration}
+              deleteRegistration={deleteRegistration}
+            />
           )}
 
           {activeTab === 'students' && (

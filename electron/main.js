@@ -191,6 +191,10 @@ if (process.platform === "win32") {
   ipcMain.handle("get-fingerprint", async () => {
     return await getFingerprint();
   });
+  ipcMain.handle("get-app-version", () => {
+    return app.getVersion(); // ← package.json version
+  });
+  
 
   ipcMain.handle("store-get", (event, key) => {
     return store.get(key);

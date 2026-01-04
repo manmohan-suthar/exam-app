@@ -32,7 +32,7 @@ const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
     { id: 'admin-login-student', label: 'Admin Login Student', icon: UserCheck },
     { id: 'listening-papers', label: 'Listening Papers', icon: FileAudio },
     { id: 'reading-papers', label: 'Reading Papers', icon: Notebook},
-    // { id: 'speaking-papers', label: 'Speaking Papers', icon: BookOpen },
+    { id: 'speaking-papers', label: 'Speaking Papers', icon: BookOpen },
     { id: 'writing-papers', label: 'Writing Papers', icon: PenTool },
     { id: 'agents', label: 'Agents', icon: Shield },
     { id: 'registrations', label: 'Registrations', icon: Monitor },

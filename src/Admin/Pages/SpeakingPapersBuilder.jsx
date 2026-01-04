@@ -14,8 +14,8 @@ const SpeakingPapersBuilder = () => {
   const [activeTab, setActiveTab] = useState('list'); // 'list', 'builder', or 'preview'
   const [currentUnit, setCurrentUnit] = useState(1); // Current unit number (1-4)
   const [currentPassage, setCurrentPassage] = useState(0); // Current passage index within unit
-  const [content, setContent] = useState('');
   const isUpdatingContent = useRef(false);
+  const isPaperInitialized = useRef(false);
 
   // Function to commit current Quill content to state
   const commitCurrentPassage = () => {
@@ -45,6 +45,7 @@ const SpeakingPapersBuilder = () => {
   const quillInstance = useRef(null);
   const isSettingContent = useRef(false);
   const textChangeHandlerRef = useRef(null);
+  const contentUpdateTimeoutRef = useRef(null);
 
   const ImageHandler = async () => {
     const input = document.createElement("input");
@@ -111,6 +112,8 @@ const SpeakingPapersBuilder = () => {
       return;
     }
 
+    isPaperInitialized.current = false;
+
     // Cleanup old instance if container changed
     if (quillInstance.current && textChangeHandlerRef.current) {
       quillInstance.current.off("text-change", textChangeHandlerRef.current);
@@ -136,10 +139,13 @@ const SpeakingPapersBuilder = () => {
     });
 
     const onChange = () => {
-        if (isSettingContent.current || isUpdatingContent.current) return;
+        if (isSettingContent.current || isUpdatingContent.current || !isPaperInitialized.current) return;
         const html = q.root.innerHTML;
-        // Update local content state only
-        setContent(html);
+        // Debounce content updates to prevent excessive re-renders
+        clearTimeout(contentUpdateTimeoutRef.current);
+        contentUpdateTimeoutRef.current = setTimeout(() => {
+          updatePassage(currentPassage, { content: html });
+        }, 300); // 300ms debounce
       };
 
     q.on("text-change", onChange);
@@ -158,6 +164,7 @@ const SpeakingPapersBuilder = () => {
     q.clipboard.dangerouslyPasteHTML(cleanContent || "");
     q.setSelection(q.getLength(), 0);
     isSettingContent.current = false;
+    isPaperInitialized.current = true;
 
     return () => {
       if (q && textChangeHandlerRef.current) {
@@ -168,6 +175,11 @@ const SpeakingPapersBuilder = () => {
       if (window.__titleUpdateTimeout) {
         clearTimeout(window.__titleUpdateTimeout);
         window.__titleUpdateTimeout = null;
+      }
+      // Clear any pending content update timeouts
+      if (contentUpdateTimeoutRef.current) {
+        clearTimeout(contentUpdateTimeoutRef.current);
+        contentUpdateTimeoutRef.current = null;
       }
     };
   }, [activeTab, currentUnit, currentPassage, currentPaper?._id]);
@@ -182,15 +194,14 @@ const SpeakingPapersBuilder = () => {
 
     isSettingContent.current = true;
     isUpdatingContent.current = true;
-    
+
     quill.setContents([]);
     quill.clipboard.dangerouslyPasteHTML(passage?.content || "");
     quill.setSelection(quill.getLength(), 0);
-    
+
     isSettingContent.current = false;
     isUpdatingContent.current = false;
-
-    setContent(passage?.content || "");
+    isPaperInitialized.current = true;
   }, [currentUnit, currentPassage, currentPaper?._id]);
 
 
@@ -308,15 +319,34 @@ const SpeakingPapersBuilder = () => {
     try {
       const admin = JSON.parse(localStorage.getItem('admin'));
 
-      // Commit current Quill content before saving
-      if (activeTab === 'builder') {
-        commitCurrentPassage();
+// 🔥 FORCE latest quill content before save
+let updatedPaper = currentPaper;
+if (quillInstance.current && activeTab === "builder") {
+  const html = quillInstance.current.root.innerHTML;
+
+  updatedPaper = {
+    ...currentPaper,
+    units: currentPaper.units.map(unit => {
+      if (unit.unitNumber === currentUnit) {
+        return {
+          ...unit,
+          passages: unit.passages.map((p, i) =>
+            i === currentPassage
+              ? { ...p, content: html }
+              : p
+          )
+        };
       }
+      return unit;
+    })
+  };
+}
+
 
       // Flatten units structure to passages, preserving section context
       const flattenedPassages = [];
 
-      currentPaper.units?.forEach(unit => {
+      updatedPaper.units?.forEach(unit => {
         unit.passages?.forEach((passage, localIndex) => {
           flattenedPassages.push({
             ...passage,
@@ -329,7 +359,7 @@ const SpeakingPapersBuilder = () => {
       });
 
       const paperData = {
-        ...currentPaper,
+        ...updatedPaper,
         passages: flattenedPassages,
         createdBy: admin.admin
       };
@@ -374,93 +404,87 @@ const SpeakingPapersBuilder = () => {
 
   // Add a new passage to the currently selected section
   const addPassageToCurrentSection = () => {
-    if (!currentPaper || !currentPaper.units) return;
+    setCurrentPaper(prev => {
+      if (!prev || !prev.units) return prev;
 
-    const currentUnitData = currentPaper.units.find(u => u.unitNumber === currentUnit);
-    if (!currentUnitData) return;
+      const currentUnitData = prev.units.find(u => u.unitNumber === currentUnit);
+      if (!currentUnitData) return prev;
 
-    const newPassage = {
-      title: `speaking Passage ${currentUnitData.passages.length + 1}`,
-      content: '', // Empty content instead of placeholder
-      images: [],
-      order: currentUnitData.passages.length,
-      unitNumber: currentUnit, // Explicitly set the section ID
-      sectionTitle: currentUnitData.title
-    };
+      const newPassage = {
+        title: `speaking Passage ${currentUnitData.passages.length + 1}`,
+        content: '', // Empty content instead of placeholder
+        images: [],
+        order: currentUnitData.passages.length,
+        unitNumber: currentUnit, // Explicitly set the section ID
+        sectionTitle: currentUnitData.title
+      };
 
-    const updatedUnits = currentPaper.units.map(unit =>
-      unit.unitNumber === currentUnit
-        ? { ...unit, passages: [...unit.passages, newPassage] }
-        : unit
-    );
+      const updatedUnits = prev.units.map(unit =>
+        unit.unitNumber === currentUnit
+          ? { ...unit, passages: [...unit.passages, newPassage] }
+          : unit
+      );
 
-    setCurrentPaper({
-      ...currentPaper,
-      units: updatedUnits
+      // Automatically select the newly added passage
+      setCurrentPassage(currentUnitData.passages.length);
+
+      return { ...prev, units: updatedUnits };
     });
-
-    // Automatically select the newly added passage
-    setCurrentPassage(currentUnitData.passages.length);
-    setContent(''); // Set empty content instead of placeholder
   };
 
   const updatePassage = (index, updates) => {
-    if (!currentPaper || !currentPaper.units) return;
+    setCurrentPaper(prev => {
+      if (!prev || !prev.units) return prev;
 
-    const updatedUnits = currentPaper.units.map(unit =>
-      unit.unitNumber === currentUnit
-        ? {
-            ...unit,
-            passages: unit.passages.map((passage, i) =>
-              i === index ? { ...passage, ...updates, unitNumber: currentUnit } : passage
-            )
-          }
-        : unit
-    );
-    
-    // Always update state for title changes and other updates
-    setCurrentPaper({
-      ...currentPaper,
-      units: updatedUnits
+      const updatedUnits = prev.units.map(unit =>
+        unit.unitNumber === currentUnit
+          ? {
+              ...unit,
+              passages: unit.passages.map((passage, i) =>
+                i === index ? { ...passage, ...updates, unitNumber: currentUnit } : passage
+              )
+            }
+          : unit
+      );
+
+      return { ...prev, units: updatedUnits };
     });
   };
 
   const removePassage = (index) => {
-    if (!currentPaper || !currentPaper.units) return;
+    setCurrentPaper(prev => {
+      if (!prev || !prev.units) return prev;
 
-    const currentUnitData = currentPaper.units.find(u => u.unitNumber === currentUnit);
-    if (!currentUnitData) return;
+      const currentUnitData = prev.units.find(u => u.unitNumber === currentUnit);
+      if (!currentUnitData) return prev;
 
-    if (currentUnitData.passages.length <= 1) {
-      alert('You must have at least one passage in this section');
-      return;
-    }
+      if (currentUnitData.passages.length <= 1) {
+        alert('You must have at least one passage in this section');
+        return prev;
+      }
 
-    const updatedUnits = currentPaper.units.map(unit =>
-      unit.unitNumber === currentUnit
-        ? { ...unit, passages: unit.passages.filter((_, i) => i !== index) }
-        : unit
-    );
+      const updatedUnits = prev.units.map(unit =>
+        unit.unitNumber === currentUnit
+          ? { ...unit, passages: unit.passages.filter((_, i) => i !== index) }
+          : unit
+      );
 
-    setCurrentPaper({
-      ...currentPaper,
-      units: updatedUnits
+      if (currentPassage >= currentUnitData.passages.length - 1) {
+        setCurrentPassage(Math.max(0, currentUnitData.passages.length - 2));
+      }
+
+      return { ...prev, units: updatedUnits };
     });
-
-    if (currentPassage >= currentUnitData.passages.length - 1) {
-      setCurrentPassage(Math.max(0, currentUnitData.passages.length - 2));
-    }
   };
 
   const updateUnit = (unitNumber, updates) => {
-    if (!currentPaper || !currentPaper.units) return;
+    setCurrentPaper(prev => {
+      if (!prev || !prev.units) return prev;
 
-    const updatedUnits = currentPaper.units.map(unit =>
-      unit.unitNumber === unitNumber ? { ...unit, ...updates } : unit
-    );
-    setCurrentPaper({
-      ...currentPaper,
-      units: updatedUnits
+      const updatedUnits = prev.units.map(unit =>
+        unit.unitNumber === unitNumber ? { ...unit, ...updates } : unit
+      );
+      return { ...prev, units: updatedUnits };
     });
   };
 
@@ -497,7 +521,7 @@ const SpeakingPapersBuilder = () => {
         ...currentPaper,
         status: 'published'
       });
-      setCurrentPaper({ ...currentPaper, status: 'published' });
+      setCurrentPaper(prev => ({ ...prev, status: 'published' }));
       await fetchPapers();
       alert('Paper published successfully!');
     } catch (error) {
@@ -816,7 +840,7 @@ const SpeakingPapersBuilder = () => {
                 <input
                   type="text"
                   value={currentPaper?.title || ''}
-                  onChange={(e) => setCurrentPaper({...currentPaper, title: e.target.value})}
+                  onChange={(e) => setCurrentPaper(prev => ({ ...prev, title: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Enter paper title"
                 />
@@ -828,7 +852,7 @@ const SpeakingPapersBuilder = () => {
                 </label>
                 <textarea
                   value={currentPaper?.description || ''}
-                  onChange={(e) => setCurrentPaper({...currentPaper, description: e.target.value})}
+                  onChange={(e) => setCurrentPaper(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Enter paper description"
@@ -842,7 +866,7 @@ const SpeakingPapersBuilder = () => {
                 <input
                   type="number"
                   value={currentPaper?.estimatedTime || 60}
-                  onChange={(e) => setCurrentPaper({...currentPaper, estimatedTime: parseInt(e.target.value) || 60})}
+                  onChange={(e) => setCurrentPaper(prev => ({ ...prev, estimatedTime: parseInt(e.target.value) || 60 }))}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   min="1"
                   max="180"

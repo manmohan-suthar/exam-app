@@ -11,6 +11,8 @@ const ExamInstructions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+
+
   useEffect(() => {
     if (!exams || exams.length === 0) {
       navigate("/dashboard");
@@ -41,8 +43,24 @@ const ExamInstructions = () => {
     fetchInstructions();
   }, []);
 
+  const enterFullScreen = () => {
+    const element = document.documentElement;
+  
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    } else if (element.mozRequestFullScreen) { // Firefox
+      element.mozRequestFullScreen();
+    } else if (element.webkitRequestFullscreen) { // Chrome, Safari
+      element.webkitRequestFullscreen();
+    } else if (element.msRequestFullscreen) { // IE/Edge
+      element.msRequestFullscreen();
+    }
+  };
+  
 
   const handleStartExam = () => {
+
+    enterFullScreen();
     // Check if any exam is speaking type
     const hasSpeakingExam = exams?.some(exam => exam.skill === "speaking");
     

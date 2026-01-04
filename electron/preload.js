@@ -15,7 +15,8 @@ const ALLOWED_INVOKE_CHANNELS = new Set([
   'store-delete',
   'update:check',
   'update:download',
-  'update:install'
+  'update:install',
+   'get-app-version'
 ]);
 
 // Secure helper to wire/unwire listeners with channel validation
@@ -41,6 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- existing: fingerprint ---
   onFingerprint: (callback) => on('fingerprint', (_e, data) => callback(data)),
   getFingerprint: () => safeInvoke('get-fingerprint'),
+  getAppVersion: () => safeInvoke('get-app-version'),
 
   // --- existing: store kv ---
   store: {

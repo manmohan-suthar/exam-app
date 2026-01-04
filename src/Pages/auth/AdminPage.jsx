@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState ,useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,6 +10,13 @@ const AdminPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    if (window.electronAPI?.getAppVersion) {
+      window.electronAPI.getAppVersion().then(setVersion);
+    }
+  }, []);
 
   const navigate = useNavigate();
 
@@ -69,7 +76,8 @@ const AdminPage = () => {
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Login</h1>
-            <p className="text-gray-600">Access the admin panel</p>
+
+            <p className="text-gray-600"> Version {version}</p>
           </div>
 
           {error && (

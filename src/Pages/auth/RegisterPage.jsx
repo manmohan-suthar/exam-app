@@ -70,7 +70,7 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen  flex">
       {/* Left Side - Image/Background */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-800 items-center justify-center relative overflow-hidden">
         <img

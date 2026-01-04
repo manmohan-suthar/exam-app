@@ -4,6 +4,7 @@ import axios from 'axios';
 const ResultsPage = () => {
   const [assignments, setAssignments] = useState([]);
   const [results, setResults] = useState([]);
+  const [speakingResults, setSpeakingResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAssignment, setSelectedAssignment] = useState(undefined);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -11,6 +12,7 @@ const ResultsPage = () => {
   const [resultsExamType, setResultsExamType] = useState('all'); // for filtering results table
   const [adminDecisions, setAdminDecisions] = useState({}); // { questionNumber: isCorrect } for listening
   const [writingScores, setWritingScores] = useState({}); // { taskNumber: score } for writing
+  const [speakingAdminResults, setSpeakingAdminResults] = useState({}); // { resultId: adminResult } for speaking
   const [manualScores, setManualScores] = useState({ listening: '', reading: '', writing: '', speaking: '' }); // Manual scores for band calculation
   const [manualBreakdownBands, setManualBreakdownBands] = useState({ listening: '', reading: '', writing: '', speaking: '' }); // Manual bands for breakdown
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -30,6 +32,7 @@ const ResultsPage = () => {
     }
   };
 
+
   const fetchResultsForAssignment = async (assignmentId) => {
     try {
       setLoading(true);
@@ -37,7 +40,7 @@ const ResultsPage = () => {
         ? `${import.meta.env.VITE_API_BASE_URL}/admin/results?assignment=${assignmentId}`
         : `${import.meta.env.VITE_API_BASE_URL}/admin/results`;
       const response = await axios.get(url);
-      setResults(response.data.results);
+      setResults(response.data.results || []);
       setSelectedAssignment(assignmentId || null);
     } catch (error) {
       console.error('Error fetching results:', error);
@@ -57,6 +60,7 @@ const ResultsPage = () => {
     setResultsExamType('all');
     setAdminDecisions({});
     setWritingScores({});
+    setSpeakingAdminResults({});
     setManualScores({ listening: '', reading: '', writing: '', speaking: '' });
     setManualBreakdownBands({ listening: '', reading: '', writing: '', speaking: '' });
     setResults([]);
@@ -71,6 +75,7 @@ const ResultsPage = () => {
     const speakingResult = studentResults.find(result => result.examType === 'speaking');
     const existingDecisions = {};
     const existingWritingScores = {};
+    const existingSpeakingAdminResults = {};
 
     if (listeningResult?.studentAnswers) {
       listeningResult.studentAnswers.forEach(answer => {
@@ -88,18 +93,25 @@ const ResultsPage = () => {
       });
     }
 
+    if (speakingResult?.speakingData) {
+      if (speakingResult.speakingData.adminResult !== null) {
+        existingSpeakingAdminResults[speakingResult._id] = speakingResult.speakingData.adminResult;
+      }
+    }
+
     // Initialize manual scores with current scores for band calculation
     const currentManualScores = {
       listening: listeningResult?.score || '',
       reading: readingResult?.score || '',
       writing: writingResult?.score || '',
-      speaking: speakingResult?.score || ''
+      speaking: speakingResult?.speakingData?.adminResult || speakingResult?.score || ''
     };
 
     setSelectedStudent(studentId);
     setSelectedExamType(resultsExamType); // Pass the current filter to student detail
     setAdminDecisions(existingDecisions);
     setWritingScores(existingWritingScores);
+    setSpeakingAdminResults(existingSpeakingAdminResults);
     setManualScores(currentManualScores);
     setHasUnsavedChanges(false);
   };
@@ -117,6 +129,15 @@ const ResultsPage = () => {
     setWritingScores(prev => ({
       ...prev,
       [taskNumber]: numScore
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSpeakingAdminResultChange = (resultId, adminResult) => {
+    const numResult = parseFloat(adminResult) || null;
+    setSpeakingAdminResults(prev => ({
+      ...prev,
+      [resultId]: numResult
     }));
     setHasUnsavedChanges(true);
   };
@@ -169,8 +190,8 @@ const ResultsPage = () => {
   };
 
   const getSpeakingBand = (score) => {
-    // Assuming score is out of 20, band is score / 2
-    return Math.min(9, Math.max(0, score / 2));
+    // Assuming score is out of 100, band is score / 10
+    return Math.min(9, Math.max(0, score / 10));
   };
 
   const calculateBand = (examType, score) => {
@@ -273,6 +294,34 @@ const ResultsPage = () => {
       }
     }
 
+    // Save speaking admin results
+    if (Object.keys(speakingAdminResults).length > 0) {
+      for (const [resultId, adminResult] of Object.entries(speakingAdminResults)) {
+        const speakingResult = studentResults.find(result => result._id === resultId && result.examType === 'speaking');
+        if (speakingResult) {
+          try {
+            const response = await axios.put(`${import.meta.env.VITE_API_BASE_URL}/admin/speaking-results/${resultId}/admin-result`, {
+              adminResult: adminResult
+            });
+
+            // Update local state
+            setResults(prevResults =>
+              prevResults.map(result =>
+                result._id === resultId
+                  ? { ...result, speakingData: { ...result.speakingData, adminResult: adminResult } }
+                  : result
+              )
+            );
+            hasChanges = true;
+          } catch (error) {
+            console.error('Error saving speaking admin result:', error);
+            alert('Error saving speaking admin result. Please try again.');
+            return;
+          }
+        }
+      }
+    }
+
     if (hasChanges) {
       setHasUnsavedChanges(false);
       alert('All changes saved successfully!');
@@ -310,6 +359,7 @@ const ResultsPage = () => {
               setSelectedStudent(null);
               setAdminDecisions({});
               setWritingScores({});
+              setSpeakingAdminResults({});
               setManualScores({ listening: '', reading: '', writing: '', speaking: '' });
               setManualBreakdownBands({ listening: '', reading: '', writing: '', speaking: '' });
               setHasUnsavedChanges(false);
@@ -330,45 +380,6 @@ const ResultsPage = () => {
 
 
 
-        {/* Score Breakdown by Exam Type - Only show if viewing all exams */}
-        {selectedExamType === 'all' && (
-          <div className="mb-8">
-            <h4 className="text-lg font-semibold text-slate-800 mb-4">Score Breakdown by Exam Type</h4>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {[
-                { key: 'all', label: 'All Exams' },
-                { key: 'listening', label: 'Listening' },
-                { key: 'reading', label: 'Reading' },
-                { key: 'writing', label: 'Writing' },
-                { key: 'speaking', label: 'Speaking' }
-              ].map(examType => {
-                const typeResults = allStudentResults.filter(r => r.examType === examType.key || examType.key === 'all');
-                const totalScore = examType.key === 'all'
-                  ? allStudentResults.reduce((sum, result) => sum + (result.score || 0), 0)
-                  : typeResults.reduce((sum, result) => sum + (result.score || 0), 0);
-                const maxScore = examType.key === 'all' ? 120 :
-                  examType.key === 'listening' ? 40 :
-                  examType.key === 'reading' ? 40 :
-                  examType.key === 'writing' ? 20 :
-                  examType.key === 'speaking' ? 20 : 0;
-
-                return (
-                  <button
-                    key={examType.key}
-                    onClick={() => setSelectedExamType(examType.key)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedExamType === examType.key
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {examType.label}: {totalScore}/{maxScore}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Question-by-Question Analysis */}
         <div className="mb-8">
@@ -394,7 +405,45 @@ const ResultsPage = () => {
                   </h5>
                 </div>
 
-                {result.examType === 'reading' && result.detailedResults && result.detailedResults.length > 0 ? (
+                {result.examType === 'speaking' && result.speakingData ? (
+                  // Display speaking results
+                  <div className="p-4 bg-slate-50 rounded-lg border">
+                    <div className="mb-3">
+                      <p className="text-sm text-slate-600 mb-2">
+                        <strong>Agent:</strong> {result.speakingData.marks}/100 |
+                        <strong> Admin:</strong> {result.speakingData.adminResult !== null ? `${result.speakingData.adminResult}/100` : 'Not set'}
+                      </p>
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <div className="flex items-center justify-center space-x-4">
+                          <label className="text-sm font-medium text-slate-700">Admin Result:</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            value={speakingAdminResults[result._id] !== undefined ? speakingAdminResults[result._id] : (result.speakingData.adminResult || '')}
+                            onChange={(e) => handleSpeakingAdminResultChange(result._id, e.target.value)}
+                            className="w-20 px-3 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="0-100"
+                          />
+                          <span className="text-sm text-slate-500">/100</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-2">
+                        <strong>Feedback:</strong>
+                      </p>
+                      <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap">
+                        {result.speakingData.feedback || 'No feedback provided'}
+                      </div>
+                      <p className="text-sm text-slate-600 mt-2">
+                        <strong>Agent ID:</strong> {result.speakingData.agentId?.name || result.speakingData.agentId}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        <strong>Submitted:</strong> {new Date(result.speakingData.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ) : result.examType === 'reading' && result.detailedResults && result.detailedResults.length > 0 ? (
                   // Use detailedResults for reading questions
                   <div className="grid gap-3">
                     {result.detailedResults.map((detail, idx) => {
@@ -540,6 +589,17 @@ const ResultsPage = () => {
                               </div>
                             );
                           });
+                      
+                          let filterOptions = [
+                            { key: 'all', label: 'All Exams' },
+                            { key: 'listening', label: 'Listening' },
+                            { key: 'reading', label: 'Reading' },
+                            { key: 'writing', label: 'Writing' },
+                            { key: 'speaking', label: 'Speaking' }
+                          ];
+                          if (exam_type === 'speaking') {
+                            filterOptions = [{ key: 'speaking', label: 'Speaking' }];
+                          }
                         } else {
                           // Single type5 question
                           const studentAnswer = detail.studentAnswers?.[0];
@@ -839,6 +899,29 @@ const ResultsPage = () => {
                                           </div>
                                         </div>
 
+                                        {isBlankInSpace && (
+                                          <div className="mb-3">
+                                            <div className="flex space-x-2">
+                                              <button
+                                                onClick={() => handleAdminDecision(answer._id, true)}
+                                                className={`px-3 py-1 rounded text-xs font-medium ${
+                                                  adminMarked === true ? 'bg-green-600 text-white' : 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                }`}
+                                              >
+                                                Right
+                                              </button>
+                                              <button
+                                                onClick={() => handleAdminDecision(answer._id, false)}
+                                                className={`px-3 py-1 rounded text-xs font-medium ${
+                                                  adminMarked === false ? 'bg-red-600 text-white' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                                }`}
+                                              >
+                                                Wrong
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+
                                         <div className="flex items-center space-x-6 text-sm">
                                           {answer.correctAnswer && !isBlankInSpace && (
                                             <span className="text-slate-600">
@@ -915,7 +998,7 @@ const ResultsPage = () => {
             <h4 className="font-semibold text-slate-800 mb-2">Overall Total Score</h4>
             <div className="text-center">
               <p className="text-2xl font-bold text-slate-800">
-                {allStudentResults.reduce((sum, result) => sum + (result.score || 0), 0)} / 120
+                {allStudentResults.reduce((sum, result) => sum + (result.score || 0), 0)} / 200
               </p>
               <p className="text-sm text-slate-600">Maximum possible score across all exams</p>
             </div>
@@ -934,11 +1017,28 @@ const ResultsPage = () => {
       ? results
       : results.filter(result => result.examType === resultsExamType);
 
+    const currentAssignment = assignments.find(a => a._id === selectedAssignment);
+    const exam_type = currentAssignment?.exam_type?.length === 1 ? currentAssignment.exam_type[0] : null;
+
     // Calculate score breakdown
-    const scoreBreakdown = ['listening', 'reading', 'writing', 'speaking'].map(examType => {
+    let typesToShow = ['listening', 'reading', 'writing', 'speaking'];
+    if (exam_type === 'writing') {
+      typesToShow = typesToShow.filter(t => t !== 'speaking');
+    } else if (exam_type === 'speaking') {
+      typesToShow = ['speaking'];
+    }
+    const scoreBreakdown = typesToShow.map(examType => {
       const typeResults = filteredResults.filter(r => r.examType === examType);
-      const totalScore = typeResults.reduce((sum, result) => sum + (result.score || 0), 0);
-      const maxScore = examType === 'listening' ? 40 : examType === 'reading' ? 40 : examType === 'writing' ? 20 : examType === 'speaking' ? 20 : 0;
+      const totalScore = typeResults.reduce((sum, result) => {
+        if (examType === 'speaking' && result.speakingData?.adminResult !== null) {
+          return sum + (result.speakingData.adminResult || 0);
+        }
+        return sum + (result.score || 0);
+      }, 0);
+      const agentTotalScore = examType === 'speaking'
+        ? typeResults.reduce((sum, result) => sum + (result.speakingData?.marks || 0), 0)
+        : totalScore;
+      const maxScore = examType === 'listening' ? 40 : examType === 'reading' ? 40 : examType === 'writing' ? 20 : examType === 'speaking' ? 100 : 0;
       const gradedCount = typeResults.filter(r => r.status === 'graded').length;
       const totalCount = typeResults.length;
       const averageScore = totalCount > 0 ? Math.round((totalScore / totalCount) * 10) / 10 : 0;
@@ -948,6 +1048,7 @@ const ResultsPage = () => {
       return {
         examType,
         totalScore,
+        agentTotalScore,
         maxScore,
         gradedCount,
         totalCount,
@@ -976,27 +1077,10 @@ const ResultsPage = () => {
               <div key={item.examType} className="bg-slate-50 p-4 rounded-lg">
                 <h4 className="font-medium text-slate-800 capitalize mb-2">{item.examType}</h4>
                 <div className="space-y-1 text-sm">
-                  <p>Total Score: <span className="font-bold">{item.totalScore}</span></p>
-                  <p>Max Possible: <span className="font-bold">{item.maxScore}</span></p>
-                  <p>Graded: <span className="font-bold">{item.gradedCount}/{item.totalCount}</span></p>
-                  <p>Avg Score: <span className="font-bold">{item.averageScore}</span></p>
-                  <p>Band: <span className="font-bold">{item.band}</span></p>
-                  <div className="mt-2">
-                    <label className="block text-xs text-slate-600 mb-1">Manual Band:</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="9"
-                      step="0.5"
-                      value={manualBreakdownBands[item.examType]}
-                      onChange={(e) => setManualBreakdownBands(prev => ({
-                        ...prev,
-                        [item.examType]: e.target.value
-                      }))}
-                      placeholder="Auto"
-                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  <p>Admin Score: <span className="font-bold">{item.totalScore}</span></p>
+                  {item.examType === 'speaking' && (
+                    <p>Agent Score: <span className="font-bold">{item.agentTotalScore || 'Not graded'}</span></p>
+                  )}
                 </div>
               </div>
             ))}
@@ -1004,30 +1088,38 @@ const ResultsPage = () => {
         </div>
 
         {/* Exam Type Filter Tabs */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Filter by Exam Type</h3>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: 'all', label: 'All Exams' },
-              { key: 'listening', label: 'Listening' },
-              { key: 'reading', label: 'Reading' },
-              { key: 'writing', label: 'Writing' },
-              { key: 'speaking', label: 'Speaking' }
-            ].map(examType => (
-              <button
-                key={examType.key}
-                onClick={() => setResultsExamType(examType.key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  resultsExamType === examType.key
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {examType.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {exam_type !== 'writing' && (() => {
+          let filterOptions = [
+            { key: 'all', label: 'All Exams' },
+            { key: 'listening', label: 'Listening' },
+            { key: 'reading', label: 'Reading' },
+            { key: 'writing', label: 'Writing' },
+            { key: 'speaking', label: 'Speaking' }
+          ];
+          if (exam_type === 'speaking') {
+            filterOptions = [{ key: 'speaking', label: 'Speaking' }];
+          }
+          return (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Filter by Exam Type</h3>
+              <div className="flex flex-wrap gap-2">
+                {filterOptions.map(examType => (
+                  <button
+                    key={examType.key}
+                    onClick={() => setResultsExamType(examType.key)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      resultsExamType === examType.key
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {examType.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="overflow-x-auto">
           <table className="w-full table-auto">

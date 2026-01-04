@@ -1049,7 +1049,7 @@ const SpeakingPlayground = ({ test, onSectionChange }) => {
         {/* Right column: speaking content */}
         <main className="lg:col-span-12 w-full h-screen p-3 flex flex-col">
           <div className="flex-1 flex flex-col">
-            <header className="flex items-start justify-between mb-6">
+            {/* <header className="flex items-start justify-between mb-6">
               <div>
                 <h1 className="text-2xl font-semibold text-gray-800">
                   {paper.title || "speaking Exam"}
@@ -1064,7 +1064,7 @@ const SpeakingPlayground = ({ test, onSectionChange }) => {
                   <>
                     <div className="flex items-end gap-4">
                       <span>
-                        <div className="text-sm text-gray-500">Section</div>
+                        <div className="text-sm text-gray-500"></div>
                         <div className="font-medium text-gray-800">
                           {currentSection + 1} / {units.length}
                         </div>
@@ -1083,16 +1083,16 @@ const SpeakingPlayground = ({ test, onSectionChange }) => {
                   </>
                 )}
               </div>
-            </header>
+            </header> */}
 
             {/* Passage content */}
             <section className="prose max-w-none flex-1">
               {agentSelected ? (
                 passage ? (
                   <>
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                    {/* <h2 className="text-xl font-semibold text-gray-800 mb-4">
                       {passage.title || `Passage ${currentPassage + 1}`}
-                    </h2>
+                    </h2> */}
                     <div
                       className="text-gray-700 leading-relaxed"
                       dangerouslySetInnerHTML={{
