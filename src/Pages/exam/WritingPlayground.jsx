@@ -323,18 +323,20 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
         \
         </div>
       </header> */}
-      <div className="w-full flex items-center justify-end ">
-        <div className="flex items-center gap-2 font-mono text-[13px] font-semibold   text-white ">
-          <button className="bg-[#FF3200]   pl-5 pr-5 ">Preview</button>
-          <button className="bg-[#FF3200]   pl-5 pr-5 ">Next</button>
-          <button className="bg-[#FF3200]   pl-5 pr-5 " onClick={submitExam}>End</button>
-          <p className="bg-[#FF3200] px-5 flex items-center justify-center gap-1 text-white">
-  {formatTime(timeLeft)}
-  <Clock6 size={16} />
-</p>
+<div className="sticky top-0 z-50 bg-white border-b">
+  <div className="w-full flex items-center justify-end px-4 py-2">
+    <div className="flex items-center gap-2 font-mono text-[13px] font-semibold text-white">
+      <button className="bg-[#FF3200] px-5">Preview</button>
+      <button className="bg-[#FF3200] px-5">Next</button>
+      <button className="bg-[#FF3200] px-5" onClick={submitExam}>End</button>
+      <p className="bg-[#FF3200] px-5 flex items-center gap-1">
+        {formatTime(timeLeft)}
+        <Clock6 size={16} />
+      </p>
+    </div>
+  </div>
+</div>
 
-        </div>
-      </div>
 
       <div className="max-w-6xl mx-auto px-4 py-2 h-[95vh] p-20">
         {/* main content */}

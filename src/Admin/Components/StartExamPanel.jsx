@@ -89,9 +89,13 @@ const StartExamPanel = () => {
   };
 
 
-  const todaysStudents = assignments.map(assignment => assignment.student).filter((student, index, self) =>
+  const todaysStudents = assignments
+  .filter(assignment => !assignment.examStarted) // ✅ ONLY Pending
+  .map(assignment => assignment.student)
+  .filter((student, index, self) =>
     self.findIndex(s => s._id === student._id) === index
   );
+
 
   return (
     <Box sx={{ p: 3 }}>

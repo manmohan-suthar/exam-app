@@ -15,8 +15,11 @@ import {
   BarChart3,
   ChevronDown,
   ChevronRight,
-  FileText
+  FileText,RefreshCcw
 } from 'lucide-react';
+  const pageRefresh = () => {
+    window.location.reload();
+  };
 
 const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
   const [expandedSections, setExpandedSections] = useState({});
@@ -128,14 +131,27 @@ const Sidebar = ({ activeTab, setActiveTab, admin, handleLogout }) => {
             <p className="text-white font-medium">{admin.admin}</p>
             <p className="text-slate-400 text-sm">Administrator</p>
           </div>
+  
         </div>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
-        >
-          <LogOut size={16} />
-          Logout
-        </button>
+        <div className="flex gap-2">
+  <button
+    onClick={handleLogout}
+    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+  >
+    <LogOut size={16} />
+    Logout
+  </button>
+
+  <button
+    onClick={pageRefresh}
+    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+  >
+    <RefreshCcw size={16} />
+    Refresh
+  </button>
+</div>
+
+
       </div>
     </div>
   );
