@@ -6,6 +6,10 @@ import { Mic, MicOff, Video, VideoOff, GripHorizontal } from "lucide-react";
 const SpeakingPlayground = ({ test, onSectionChange }) => {
   const navigate = useNavigate();
 
+  const handleEndExam = () => {
+    navigate("/thanks");
+  };
+
   const studentName = test?.student?.name || "Suthar";
   const agentName = "Agent";
 
@@ -1084,6 +1088,14 @@ const SpeakingPlayground = ({ test, onSectionChange }) => {
                 )}
               </div>
             </header> */}
+            <div className="sticky top-0 z-50 bg-white ">
+  <div className="w-full flex items-center justify-end px-4 py-2">
+    <div className="flex items-center gap-2 font-mono text-[13px] font-semibold text-white">
+      <button className="bg-[#FF3200] px-5" onClick={handleEndExam} >End Exam</button>
+     
+    </div>
+  </div>
+</div>
 
             {/* Passage content */}
             <section className="prose max-w-none flex-1">
