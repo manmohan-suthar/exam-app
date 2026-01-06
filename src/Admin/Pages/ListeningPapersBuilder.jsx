@@ -151,8 +151,8 @@ const [progress, setProgress] = useState({});
       options: [
         { letter: 'A', text: '' },
         { letter: 'B', text: '' },
-        { letter: 'C', text: '' },
-        { letter: 'D', text: '' }
+        { letter: 'C', text: '' }
+       
       ],
       correctAnswer: ''
     };

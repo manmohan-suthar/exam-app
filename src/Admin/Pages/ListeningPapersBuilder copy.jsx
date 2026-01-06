@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Plus, Save, Eye, Upload, Trash2, Edit, Play, Pause } from 'lucide-react';
+import BlankInSpaceQuestionRenderer from '../Components/BlankInSpaceQuestionRenderer';
 
 const ListeningPapersBuilder = () => {
   const [papers, setPapers] = useState([]);
   const [currentPaper, setCurrentPaper] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const audioInputRef = useRef(null);
+  // NEW: per-section upload state
+const [uploading, setUploading] = useState({});   // { [sectionIndex]: true/false }
+const [progress, setProgress] = useState({});  
+
   const [activeTab, setActiveTab] = useState('list'); // 'list', 'builder', or 'preview'
   const [currentSection, setCurrentSection] = useState(0);
 
@@ -23,6 +29,7 @@ const ListeningPapersBuilder = () => {
     }
   };
 
+
   const createNewPaper = () => {
     setCurrentPaper({
       title: '',
@@ -30,6 +37,7 @@ const ListeningPapersBuilder = () => {
       sections: [
         {
           sectionNumber: 1,
+          introduction: '',
           audioFile: '',
           audioUrl: '',
           startTime: '00:00',
@@ -50,6 +58,7 @@ const ListeningPapersBuilder = () => {
       paperWithSections.sections = [
         {
           sectionNumber: 1,
+          introduction: '',
           audioFile: paperWithSections.audioFile || '',
           audioUrl: '',
           startTime: '00:00',
@@ -58,6 +67,12 @@ const ListeningPapersBuilder = () => {
       ];
       delete paperWithSections.questions; // Remove old structure
       delete paperWithSections.audioFile; // Remove old structure
+    } else {
+      // Ensure all sections have introduction field for backward compatibility
+      paperWithSections.sections = paperWithSections.sections.map(section => ({
+        ...section,
+        introduction: section.introduction || ''
+      }));
     }
     setCurrentPaper(paperWithSections);
     setCurrentSection(0);
@@ -130,6 +145,7 @@ const ListeningPapersBuilder = () => {
 
     const newQuestion = {
       questionNumber: totalQuestionsBefore + currentSectionData.questions.length + 1,
+      questionType: 'multiple-choice',
       question: '',
       audioTimestamp: '',
       options: [
@@ -139,6 +155,44 @@ const ListeningPapersBuilder = () => {
         { letter: 'D', text: '' }
       ],
       correctAnswer: ''
+    };
+
+    const updatedSections = [...currentPaper.sections];
+    updatedSections[currentSection] = {
+      ...currentSectionData,
+      questions: [...currentSectionData.questions, newQuestion]
+    };
+
+    // Update question numbers for all subsequent questions
+    for (let i = currentSection + 1; i < updatedSections.length; i++) {
+      updatedSections[i].questions = updatedSections[i].questions.map((q, idx) => ({
+        ...q,
+        questionNumber: totalQuestionsBefore + currentSectionData.questions.length + 1 + idx + 1
+      }));
+    }
+
+    setCurrentPaper({
+      ...currentPaper,
+      sections: updatedSections
+    });
+  };
+
+  const addBlankInSpaceQuestion = () => {
+    if (!currentPaper || !currentPaper.sections) return;
+
+    const currentSectionData = currentPaper.sections[currentSection];
+    if (!currentSectionData) return;
+
+    // Calculate global question number
+    const totalQuestionsBefore = currentPaper.sections
+      .slice(0, currentSection)
+      .reduce((total, section) => total + section.questions.length, 0);
+
+    const newQuestion = {
+      questionNumber: totalQuestionsBefore + currentSectionData.questions.length + 1,
+      questionType: 'Blank_in_Space',
+      question: '',
+      audioTimestamp: ''
     };
 
     const updatedSections = [...currentPaper.sections];
@@ -216,6 +270,7 @@ const ListeningPapersBuilder = () => {
 
     const newSection = {
       sectionNumber: currentPaper.sections.length + 1,
+      introduction: '',
       audioFile: '',
       audioUrl: '',
       startTime: '00:00',
@@ -256,37 +311,87 @@ const ListeningPapersBuilder = () => {
     setActiveTab('preview');
   };
 
-  const handleAudioUpload = async (event, sectionIndex) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!currentPaper?._id) {
-      alert('Please save the paper first before uploading audio.');
-      return;
+  const fetchSinglePaper = async () => {
+    const res = await axios.get(
+      `${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper._id}`
+    );
+    setCurrentPaper(res.data.paper);
+  };
+  
+  useEffect(() => {
+    if (currentPaper?._id) {
+      fetchSinglePaper();
     }
-
+  }, []);
+  
+  const handleAudioUpload = async (event, sectionIndex) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+  
     const formData = new FormData();
-    formData.append('audio', file);
-    formData.append('sectionIndex', sectionIndex + 1);
-
+    formData.append("audio", file);
+    formData.append("sectionIndex", sectionIndex + 1);
+  
+    // start UI state
+    setUploading(prev => ({ ...prev, [sectionIndex]: true }));
+    setProgress(prev => ({ ...prev, [sectionIndex]: 0 }));
+  
     try {
-      const response = await axios.post(
+      const res = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/admin/listening-papers/${currentPaper._id}/upload-audio`,
         formData,
         {
-          headers: {
-            'Content-Type': 'multipart/form-data'
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (e) => {
+            if (!e.total) {
+              // kuch servers total nahi bhejte — is case me sirf loader dikhao
+              setProgress(prev => ({ ...prev, [sectionIndex]: null }));
+              return;
+            }
+            const pct = Math.round((e.loaded * 100) / e.total);
+            setProgress(prev => ({ ...prev, [sectionIndex]: pct }));
           }
         }
       );
-
-      updateSection(sectionIndex, { audioFile: response.data.audioFile });
-      alert('Audio uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading audio:', error);
-      alert('Error uploading audio');
+  
+      // ✅ Update section audio
+      setCurrentPaper(prev => ({
+        ...prev,
+        sections: prev.sections.map((section, idx) =>
+          idx === sectionIndex
+            ? {
+                ...section,
+                audioFile: res.data.audioFile,
+                audioUrl: res.data.audioUrl
+              }
+            : section
+        )
+      }));
+  
+      // input clear
+      event.target.value = "";
+  
+      alert("Audio uploaded successfully");
+    } catch (err) {
+      console.error(err);
+      alert(err?.response?.data?.error || "Audio upload failed");
+    } finally {
+      setUploading(prev => ({ ...prev, [sectionIndex]: false }));
+      // progress ko chhod bhi sakte ho, ya success par 100 set karke 1-2s baad clear karna ho to:
+      setTimeout(() => {
+        setProgress(prev => {
+          const copy = { ...prev };
+          delete copy[sectionIndex];
+          return copy;
+        });
+      }, 1200);
     }
   };
+  
+  
+  
+  
+  
 
   const publishPaper = async () => {
     const hasAudio = currentPaper.sections.some(section => section.audioFile || section.audioUrl);
@@ -500,6 +605,13 @@ const ListeningPapersBuilder = () => {
                           </p>
                         </div>
                       </div>
+
+                      {currentSectionData.introduction && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                          <h5 className="text-sm font-medium text-slate-700 mb-2">Introduction</h5>
+                          <p className="text-slate-700 text-sm leading-relaxed">{currentSectionData.introduction}</p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Questions */}
@@ -567,6 +679,7 @@ const ListeningPapersBuilder = () => {
           {currentPaper?._id ? 'Edit Paper' : 'Create New Paper'}
         </h2>
         <div className="flex gap-2">
+
           <button
             onClick={() => setActiveTab('list')}
             className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg"
@@ -687,6 +800,13 @@ const ListeningPapersBuilder = () => {
                 <Plus size={20} />
                 Add Multiple Choice Question
               </button>
+              <button
+                onClick={addBlankInSpaceQuestion}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <Plus size={20} />
+                Add Blank in Space Question
+              </button>
             </div>
           </div>
         </div>
@@ -714,17 +834,52 @@ const ListeningPapersBuilder = () => {
                     <h4 className="text-sm font-medium text-slate-700 mb-3">Audio Configuration</h4>
                     <div className="space-y-3">
                       <div>
+                        <label className="block text-sm text-slate-600 mb-1">Introduction</label>
+                        <textarea
+                          value={currentSectionData.introduction || ''}
+                          onChange={(e) => updateSection(currentSection, { introduction: e.target.value })}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder="Enter section introduction text"
+                        />
+                      </div>
+                      <div>
                         <label className="block text-sm text-slate-600 mb-1">Audio File</label>
                         {!currentPaper._id ? (
                           <div className="text-xs text-slate-500 mb-2">Save the paper first to upload audio</div>
                         ) : null}
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={(e) => handleAudioUpload(e, currentSection)}
-                          disabled={!currentPaper._id}
-                          className={`block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${!currentPaper._id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        />
+<input
+  type="file"
+  ref={audioInputRef}
+  accept="audio/*"
+  onChange={(e) => handleAudioUpload(e, currentSection)}
+  disabled={!currentPaper._id || uploading[currentSection]}
+  className={`block w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+    !currentPaper._id ? 'opacity-50 cursor-not-allowed' : ''
+  }`}
+/>
+
+{/* NEW: progress / loader */}
+{uploading[currentSection] && (
+  <div className="mt-3">
+    {typeof progress[currentSection] === 'number' ? (
+      <>
+        <div className="h-2 w-full bg-slate-200 rounded">
+          <div
+            className="h-2 bg-teal-600 rounded transition-all"
+            style={{ width: `${progress[currentSection]}%` }}
+          />
+        </div>
+        <div className="text-xs text-slate-600 mt-1">
+          Uploading… {progress[currentSection]}%
+        </div>
+      </>
+    ) : (
+      <div className="text-xs text-slate-600">Uploading…</div>
+    )}
+  </div>
+)}
+
                         {currentSectionData.audioFile && (
                           <div className="text-xs text-green-600 mt-1">Audio file uploaded</div>
                         )}
@@ -739,7 +894,7 @@ const ListeningPapersBuilder = () => {
                           placeholder="https://example.com/audio.mp3"
                         />
                       </div>
-                      <div>
+                      {/* <div>
                         <label className="block text-sm text-slate-600 mb-1">Start Time</label>
                         <input
                           type="text"
@@ -748,7 +903,7 @@ const ListeningPapersBuilder = () => {
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                           placeholder="00:00"
                         />
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </div>
@@ -789,6 +944,29 @@ const ListeningPapersBuilder = () => {
 
 // Professional Exam Question Renderer
 const renderExamQuestion = (question) => {
+  if (question.questionType === 'Blank_in_Space') {
+    const parts = question.question.split('{blank}');
+    return (
+      <div className="space-y-4">
+        <p className="text-slate-800 font-medium text-lg leading-relaxed">
+          {parts.map((part, index) => (
+            <span key={index}>
+              {part}
+              {index < parts.length - 1 && (
+                <input
+                  type="text"
+                  name={`question-${question.questionNumber}-blank-${index}`}
+                  className="inline-block mx-1 px-2 py-1 border-b-2 border-slate-400 bg-transparent focus:outline-none focus:border-blue-500 min-w-20"
+                  placeholder=""
+                />
+              )}
+            </span>
+          ))}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {question.question && (
@@ -820,8 +998,14 @@ const QuestionCard = ({ question, index, onUpdate, onRemove }) => {
     <div className="border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-3">
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            Multiple Choice
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            question.questionType === 'multiple-choice'
+              ? 'bg-blue-100 text-blue-800'
+              : question.questionType === 'Blank_in_Space'
+              ? 'bg-purple-100 text-purple-800'
+              : 'bg-gray-100 text-gray-800'
+          }`}>
+            {question.questionType === 'multiple-choice' ? 'Multiple Choice' : question.questionType === 'Blank_in_Space' ? 'Blank in Space' : question.questionType}
           </span>
           <span className="text-slate-600 text-sm font-medium">Question {question.questionNumber}</span>
         </div>
@@ -847,20 +1031,29 @@ const QuestionCard = ({ question, index, onUpdate, onRemove }) => {
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-slate-200 bg-slate-50 -mx-4 px-4 pb-4 rounded-b-lg">
           <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Question Text
-              </label>
-              <textarea
-                value={question.question}
-                onChange={(e) => onUpdate({ question: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                placeholder="Enter the question"
+            {question.questionType === 'Blank_in_Space' ? (
+              <BlankInSpaceQuestionRenderer
+                question={question}
+                onUpdate={onUpdate}
+                isEditable={true}
+                showPreview={true}
               />
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Question Text
+                </label>
+                <textarea
+                  value={question.question}
+                  onChange={(e) => onUpdate({ question: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="Enter the question"
+                />
+              </div>
+            )}
 
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Audio Timestamp (Optional)
               </label>
@@ -871,51 +1064,56 @@ const QuestionCard = ({ question, index, onUpdate, onRemove }) => {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 placeholder="e.g., 00:50 to 01:20"
               />
-            </div>
+            </div> */}
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Answer Options
-              </label>
-              <div className="space-y-2">
-                {question.options?.map((option, optIndex) => (
-                  <div key={optIndex} className="flex items-center gap-2">
-                    <span className="w-8 text-center font-medium text-slate-600">
-                      {option.letter}
-                    </span>
-                    <input
-                      type="text"
-                      value={option.text}
-                      onChange={(e) => {
-                        const newOptions = [...question.options];
-                        newOptions[optIndex] = { ...option, text: e.target.value };
-                        onUpdate({ options: newOptions });
-                      }}
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      placeholder={`Option ${option.letter}`}
-                    />
+            {question.questionType === 'multiple-choice' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Answer Options
+                  </label>
+                  <div className="space-y-2">
+                    {question.options?.map((option, optIndex) => (
+                      <div key={optIndex} className="flex items-center gap-2">
+                        <span className="w-8 text-center font-medium text-slate-600">
+                          {option.letter}
+                        </span>
+                        <input
+                          type="text"
+                          value={option.text}
+                          onChange={(e) => {
+                            const newOptions = [...question.options];
+                            newOptions[optIndex] = { ...option, text: e.target.value };
+                            onUpdate({ options: newOptions });
+                          }}
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          placeholder={`Option ${option.letter}`}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Correct Answer
-              </label>
-              <select
-                value={question.correctAnswer || ''}
-                onChange={(e) => onUpdate({ correctAnswer: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <option value="">Select correct answer</option>
-                {question.options?.map((option) => (
-                  <option key={option.letter} value={option.letter}>
-                    {option.letter} - {option.text}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Correct Answer
+                  </label>
+                  <select
+                    value={question.correctAnswer || ''}
+                    onChange={(e) => onUpdate({ correctAnswer: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">Select correct answer</option>
+                    {question.options?.map((option) => (
+                      <option key={option.letter} value={option.letter}>
+                        {option.letter} - {option.text}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}
