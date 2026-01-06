@@ -116,15 +116,15 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
     setCurrentHistoryIndex(newHistory.length - 1);
   };
 
-  // Initialize history
-  useEffect(() => {
-    if (paper && currentTask) {
-      const initialText = answers[currentTask] || "";
-      if (history.length === 0) {
-        addToHistory(initialText);
-      }
-    }
-  }, [paper, currentTask, answers]);
+// ✅ Initialize history ONLY when task changes
+useEffect(() => {
+  if (paper && currentTask) {
+    const initialText = answers[currentTask] || "";
+    setHistory([initialText]);
+    setCurrentHistoryIndex(0);
+  }
+}, [paper, currentTask]);
+
 
   // Toolbar handlers
   const handleUndo = () => {
@@ -453,39 +453,25 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
 
     {/* ===== TEXTAREA ===== */}
     <textarea
-      ref={textareaRef}
-      value={answers[currentTask] || ""}
-      onChange={(e) => {
-        const newText = e.target.value;
-        handleAnswerChange(currentTask, newText);
-        // Debounced save to history
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = setTimeout(() => {
-          if (!isUndoing) {
-            addToHistory(newText);
-          }
-        }, 1000);
-      }}
-      onBlur={() => {
-        // Immediate save on blur
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-        if (!isUndoing) {
-          addToHistory(answers[currentTask]);
-        }
-      }}
-      placeholder="Write your answer here..."
-      className="
-        w-full
-        min-h-[400px]
-        p-4
-        resize-none
-        outline-none
-        focus:outline-none
-        border-none
-      "
-    />
+  ref={textareaRef}
+  value={answers[currentTask] || ""}
+  tabIndex={0}
+  autoFocus
+  onChange={(e) => {
+    const newText = e.target.value;
+    handleAnswerChange(currentTask, newText);
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      if (!isUndoing) {
+        addToHistory(newText);
+      }
+    }, 800);
+  }}
+  placeholder="Write your answer here..."
+  className="relative z-10 w-full min-h-[400px] p-4 resize-none outline-none border-none"
+/>
+
   </div>
 </div>
 

@@ -66,6 +66,36 @@ const ResultsPage = () => {
     setResults([]);
   };
 
+  const handleDeleteAssignment = async (assignmentId) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this assignment and all its associated results? This action cannot be undone.');
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments/${assignmentId}`);
+      alert('Assignment and associated results deleted successfully.');
+      fetchAssignments();
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      let errorMessage = 'Error deleting assignment. Please try again.';
+      if (error.response) {
+        if (error.response.status === 401) {
+          errorMessage = 'Unauthorized access. Please log in again.';
+        } else if (error.response.status === 403) {
+          errorMessage = 'You do not have permission to delete this assignment.';
+        } else if (error.response.status === 404) {
+          errorMessage = 'Assignment not found.';
+        } else if (error.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      alert(errorMessage);
+    }
+  };
+
   const handleRowClick = (studentId) => {
     // Initialize admin decisions with existing marks
     const studentResults = results.filter(result => result.student._id === studentId);
@@ -1219,12 +1249,20 @@ const ResultsPage = () => {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm">
-                  <button
-                    onClick={() => handleAssignmentClick(assignment._id)}
-                    className="px-3 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700 transition-colors"
-                  >
-                    View Results
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleAssignmentClick(assignment._id)}
+                      className="px-3 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700 transition-colors"
+                    >
+                      View Results
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAssignment(assignment._id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

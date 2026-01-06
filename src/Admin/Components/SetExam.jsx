@@ -87,6 +87,18 @@ const SetExam = () => {
     }
   };
 
+  const deleteAssignment = async (id) => {
+    if (!confirm('Are you sure you want to delete this assignment? This will also delete all related results.')) return;
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-assignments/${id}`);
+      setAssignments(assignments.filter(assignment => assignment._id !== id));
+      alert('Assignment and related results deleted successfully');
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      alert('Error deleting assignment');
+    }
+  };
+
   const fetchExamPapers = async (examType) => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/exam-papers/${examType}`);
@@ -104,6 +116,12 @@ const SetExam = () => {
   };
 
   const handleExamTypeToggle = (examType) => {
+    // Prevent selecting 'speaking' if other exam types are already selected
+    if (examType === 'speaking' && selectedExamTypes.length > 0) return;
+
+    // Prevent selecting other exam types if 'speaking' is already selected
+    if (selectedExamTypes.includes('speaking') && examType !== 'speaking') return;
+
     setSelectedExamTypes(prev => {
       const isSelected = prev.includes(examType);
       const newSelected = isSelected
@@ -267,17 +285,22 @@ const SetExam = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-3">Select Exam Types *</label>
               <div className="grid grid-cols-2 gap-3">
-                {examTypes.map((type) => (
-                  <label key={type.id} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedExamTypes.includes(type.id)}
-                      onChange={() => handleExamTypeToggle(type.id)}
-                      className="w-4 h-4 text-teal-600 bg-slate-100 border-slate-300 rounded focus:ring-teal-500"
-                    />
-                    <span className="text-sm text-slate-700">{type.label}</span>
-                  </label>
-                ))}
+                {examTypes.map((type) => {
+                  const isSpeakingSelected = selectedExamTypes.includes('speaking');
+                  const isDisabled = (type.id === 'speaking' && selectedExamTypes.length > 0 && !isSpeakingSelected) || (isSpeakingSelected && type.id !== 'speaking');
+                  return (
+                    <label key={type.id} className={`flex items-center space-x-2 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedExamTypes.includes(type.id)}
+                        onChange={() => handleExamTypeToggle(type.id)}
+                        disabled={isDisabled}
+                        className="w-4 h-4 text-teal-600 bg-slate-100 border-slate-300 rounded focus:ring-teal-500 disabled:opacity-50"
+                      />
+                      <span className="text-sm text-slate-700">{type.label}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
@@ -468,6 +491,12 @@ const SetExam = () => {
                       />
                       Visible
                     </label>
+                    <button
+                      onClick={() => deleteAssignment(assignment._id)}
+                      className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))

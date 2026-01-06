@@ -73,7 +73,7 @@ const BlankInSpaceQuestionRenderer = ({
             value={questionText}
             onChange={(e) => handleQuestionTextChange(e.target.value)}
             rows={3}
-            className=" px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
             placeholder="Enter the question text with {blank} placeholders. Example: The weather is {blank} today."
           />
           {validationError && (

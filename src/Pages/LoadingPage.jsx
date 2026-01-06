@@ -60,6 +60,32 @@ const LoadingPage = () => {
     return () => window.removeEventListener('keydown', handleHotkeys, true);
   }, [navigate]);
   
+  useEffect(() => {
+    try {
+      const alreadyCleared = sessionStorage.getItem('loading_page_cleared');
+  
+      if (!alreadyCleared) {
+        console.log('🧹 Clearing all storage (first load)');
+  
+        // ✅ Clear browser storage
+        localStorage.clear();
+  
+        // ❌ Do NOT clear sessionStorage fully
+        // because we need the flag
+        // sessionStorage.clear();
+  
+        // ✅ Clear Electron store (if available)
+        if (window?.electronAPI?.store?.clear) {
+          window.electronAPI.store.clear();
+        }
+  
+        // ✅ Mark cleared (only once per app launch)
+        sessionStorage.setItem('loading_page_cleared', 'true');
+      }
+    } catch (err) {
+      console.error('Storage clear failed:', err);
+    }
+  }, []);
   
   
 

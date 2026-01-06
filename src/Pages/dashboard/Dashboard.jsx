@@ -31,7 +31,7 @@ const Dashboard = () => {
 
     const fetchAssignments = async () => {
       try {
-        const url = `${import.meta.env.VITE_API_BASE_URL}/exam-assignments?studentId=${student._id}`;
+        const url = `${import.meta.env.VITE_API_BASE_URL}/exam-assignments?student_id=${student.student_id}`;
         const res = await fetch(url);
 
         if (!res.ok) return;
