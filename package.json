@@ -1,6 +1,6 @@
 {
   "name": "peoplecert",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "Online Exam Application",
   "main": "electron/main.js",
   "author": "peoplecert",

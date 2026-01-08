@@ -764,13 +764,13 @@ const AgentspeakingControl = () => {
               <ClipboardList size={16} />
               Speaking Result
             </button>
-            <button
+            {/* <button
               onClick={endExam}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
             >
               <AlertCircle size={16} />
               End Exam
-            </button>
+            </button> */}
             <button
               onClick={() => navigate("/agent-dashboard")}
               className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
