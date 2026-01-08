@@ -169,7 +169,7 @@ export default function ListeningPlaygroundUI({
     };
     const onEnded = () => {
       setIsPlaying(false);
-    
+
       if (paper && currentPart < paper.sections.length - 1) {
         // ✅ tell parent: this part is completed
         onCompletedPartsChange?.((prev) =>
@@ -179,7 +179,6 @@ export default function ListeningPlaygroundUI({
         setExamCompleted(true);
       }
     };
-    
 
     a.addEventListener("timeupdate", onTime);
     a.addEventListener("loadedmetadata", onLoaded);
@@ -273,6 +272,64 @@ export default function ListeningPlaygroundUI({
     }
   }, [isPlaying]);
 
+  function renderHTMLWithBlanks(html, questionNumber, answersRef, setAnswers) {
+    const template = document.createElement("template");
+    template.innerHTML = html;
+
+    let blankIndex = 0;
+
+    function walk(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const parts = node.textContent.split("{blank}");
+        if (parts.length === 1) return node;
+
+        const fragment = document.createDocumentFragment();
+
+        parts.forEach((part, idx) => {
+          fragment.appendChild(document.createTextNode(part));
+
+          if (idx < parts.length - 1) {
+            const key = `${questionNumber}-blank-${blankIndex}`;
+            blankIndex++;
+
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = answersRef.current[key] || "";
+            input.dataset.key = key;
+            input.className =
+              "w-32 h-5 rounded-2xl bg-white border-2 border-gray-400 px-2 text-sm align-middle ml-1 mr-1";
+
+            input.oninput = (e) => {
+              answersRef.current[key] = e.target.value;
+            };
+
+            input.onblur = (e) => {
+              const k = e.target.dataset.key;
+              setAnswers((prev) => ({
+                ...prev,
+                [k]: answersRef.current[k] ?? "",
+              }));
+            };
+
+            fragment.appendChild(input);
+          }
+        });
+
+        return fragment;
+      }
+
+      const childNodes = Array.from(node.childNodes);
+      childNodes.forEach((child) => {
+        const result = walk(child);
+        if (result !== child) node.replaceChild(result, child);
+      });
+
+      return node;
+    }
+
+    return walk(template.content.cloneNode(true));
+  }
+
   const submitExam = async () => {
     if (!paper) return;
     if (submittedRef.current) return; // Prevent duplicate submissions
@@ -359,68 +416,35 @@ export default function ListeningPlaygroundUI({
   }) {
     const BlankLine = React.memo(function BlankLine({ question }) {
       const text = question.question || question.text || "";
-      const parts = text.split(/(\{blank\})/g);
+
       return (
-        <li className="flex items-start" key={question.questionNumber}>
-          <span className="w-2.5 h-2.5 mt-3 mr-4 bg-gray-400 rounded-full flex-shrink-0" />
-          <div className="flex-1">
-            <div className="mb-2 text-sm">
-              <span className="font-semibold mr-2">
-                {question.questionNumber}.
-              </span>
-              {parts.map((p, i) =>
-                p === "{blank}" ? (
-                  <span
-                    key={`${question.questionNumber}-blank-${Math.floor(
-                      i / 2
-                    )}`}
-                    className="inline-block align-middle ml-1 mr-1"
-                    style={{ verticalAlign: "middle" }}
-                  >
-                    <input
-                      data-key={`${question.questionNumber}-blank-${Math.floor(
-                        i / 2
-                      )}`}
-                      type="text"
-                      defaultValue={
-                        answersRef.current[
-                          `${question.questionNumber}-blank-${Math.floor(
-                            i / 2
-                          )}`
-                        ] || ""
-                      }
-                      onChange={(e) => {
-                        const key = `${
-                          question.questionNumber
-                        }-blank-${Math.floor(i / 2)}`;
-                        answersRef.current[key] = e.target.value;
-                      }}
-                      onBlur={(e) => {
-                        const key = e.target.getAttribute("data-key");
-                        setAnswers((prev) => ({
-                          ...prev,
-                          [key]: answersRef.current[key] ?? "",
-                        }));
-                      }}
-                      className="w-32 h-7 rounded-2xl bg-white border-2 border-gray-400 px-2 text-sm focus:outline-none"
-                    />
-                  </span>
-                ) : (
-                  <span key={`${question.questionNumber}-text-${i}`}>{p}</span>
-                )
-              )}
-            </div>
+        <div className="flex-1">
+            <div
+              className="ql-editor mb-2 text-sm"
+              ref={(el) => {
+                if (el && text) {
+                  const dom = renderHTMLWithBlanks(
+                    text,
+                    question.questionNumber,
+                    answersRef,
+                    setAnswers
+                  );
+                  el.innerHTML = "";
+                  el.appendChild(dom);
+                }
+              }}
+            />
+
             {question.hint && (
               <div className="text-xs text-gray-400">{question.hint}</div>
             )}
           </div>
-        </li>
       );
     });
 
     return (
       <div className="pt-10 flex items-center justify-center">
-        <div className="relative ">
+        <div className="relative w-full max-w-3xl">
           {/* shadow base */}
           <div className="absolute left-6 right-0 bottom-0 h-6 bg-gray-700 rounded-b-2xl transform translate-y-4 shadow-lg" />
 
@@ -437,16 +461,10 @@ export default function ListeningPlaygroundUI({
               ))}
             </div>
 
-            <div className="bg-gray-200 rounded-lg p-8">
-          
-
-              <ul className="space-y-4 text-gray-700  leading-relaxed">
-                {questions.map((q) => (
-                  <BlankLine key={q.questionNumber} question={q} />
-                ))}
-              </ul>
-
-             
+            <div className="bg-gray-200 rounded-lg ">
+              {questions.map((q) => (
+                <BlankLine key={q.questionNumber} question={q} />
+              ))}
             </div>
 
             {/* curled corner */}
@@ -677,16 +695,14 @@ export default function ListeningPlaygroundUI({
                 preload="metadata"
                 style={{ display: "none" }}
                 tabIndex={-1}
-                
               />
             </div>
             <div className="w-full flex items-center justify-end ">
-        <div className="flex items-center gap-2 font-mono text-[13px] font-semibold   text-white ">
-          <button className="bg-[#FF3200]   pl-5 pr-5 ">Preview</button>
-          <button className="bg-[#FF3200]   pl-5 pr-5 ">Next</button>
-
-        </div>
-      </div>
+              <div className="flex items-center gap-2 font-mono text-[13px] font-semibold   text-white ">
+                <button className="bg-[#FF3200]   pl-5 pr-5 ">Preview</button>
+                <button className="bg-[#FF3200]   pl-5 pr-5 ">Next</button>
+              </div>
+            </div>
           </div>
 
           {/* instructions */}

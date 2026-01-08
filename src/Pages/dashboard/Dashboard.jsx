@@ -98,7 +98,7 @@ const Dashboard = () => {
         {/* Start Exam Button */}
         {examAssignment && (
           <button
-            onClick={() => navigate("/exam/verification", { state: { skill: "listening" } })}
+            onClick={() => navigate("/exam/verification", { state: { examAssignment } })}
             className="mt-10 w-[220px] bg-[#FF3200] text-white py-3 rounded-lg  hover:bg-[#ff3300b1] transition"
           >
             Start Exam

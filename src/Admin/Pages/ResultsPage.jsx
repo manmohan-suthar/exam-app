@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import "quill/dist/quill.snow.css";
+
 
 const ResultsPage = () => {
   const [assignments, setAssignments] = useState([]);
@@ -548,7 +550,11 @@ const ResultsPage = () => {
                               <div className="mb-3">
                                 <div className="text-sm text-slate-600 mb-2">
                                   <strong>Gap {gap.gapNumber}:</strong>
-                                  <p className="whitespace-pre-line mt-1">{detail.question}</p>
+                                  <div
+  className="ql-editor mt-1"
+  dangerouslySetInnerHTML={{ __html: detail.question }}
+/>
+
                                   {detail.instructions && (
                                     <p className="text-slate-500 mt-1">{detail.instructions}</p>
                                   )}
@@ -812,9 +818,11 @@ const ResultsPage = () => {
                                     <p className="text-sm text-slate-600 mb-2">
                                       <strong>Student Answer:</strong>
                                     </p>
-                                    <div className="bg-white p-3 rounded border text-sm whitespace-pre-wrap min-h-[200px]">
-                                      {answers[0].answer || 'N/A'}
-                                    </div>
+                                    <div
+  className="bg-white p-3 rounded border text-sm min-h-[200px] ql-editor"
+  dangerouslySetInnerHTML={{ __html: answers[0].answer || 'N/A' }}
+/>
+
                                     {answers[0].wordCount && (
                                       <p className="text-xs text-slate-500 mt-1">Word count: {answers[0].wordCount}</p>
                                     )}
@@ -851,7 +859,12 @@ const ResultsPage = () => {
                                 <div className="mb-3">
                                   <div className="text-sm text-slate-600 mb-2">
                                     <strong>Question:</strong>
-                                    <p className="whitespace-pre-line mt-1">{questionText}</p>
+                                    <div
+  className="ql-editor mt-1"
+  dangerouslySetInnerHTML={{ __html: questionText }}
+/>
+
+
                                   </div>
                                 </div>
 

@@ -19,6 +19,7 @@ const InstructionsEditor = ({ category }) => {
     "reading-instructions": "Reading",
     "writing-instructions": "Writing",
   };
+  
 
   const categoryNames = {
     "listening-instructions": "listening",
@@ -32,28 +33,57 @@ const InstructionsEditor = ({ category }) => {
 
   useEffect(() => {
     if (loading) return;
-
+  
     quillRef.current = new Quill(editorRef.current, {
       theme: "snow",
       placeholder: "Write instructions here...",
       modules: {
         toolbar: [
           [{ header: [1, 2, 3, false] }],
-          ["bold", "italic", "underline"],
-          [{ list: "ordered" }, { list: "bullet" }],
-          ["link"], // ❗ No image button
+          ["italic", "underline"],
+          [{ list: "bullet", ordered: true }],
+          ["link"],
           ["clean"],
         ],
+        keyboard: {
+          bindings: {
+            insertBulletAltB: {
+              key: 66,        // B
+              altKey: true,   // ALT + B
+              handler: function (range) {
+                if (!range) return false;
+        
+                const quill = quillRef.current;
+                quill.insertText(range.index, "● ");
+                quill.setSelection(range.index + 2);
+                return false;
+              },
+            },
+          },
+        },
+        
       },
     });
-
+  
     quillRef.current.root.innerHTML = content;
-
+  
     quillRef.current.on("text-change", () => {
       setContent(quillRef.current.root.innerHTML);
     });
-
   }, [loading]);
+  
+  
+
+  const handleInsertHappy = () => {
+    const quill = quillRef.current;
+    if (quill) {
+      const range = quill.getSelection(true);
+      if (range) {
+        quill.insertText(range.index, "● ");
+        quill.setSelection(range.index + 2);
+      }
+    }
+  };
 
 
   const fetchInstructions = async () => {
@@ -114,6 +144,13 @@ const InstructionsEditor = ({ category }) => {
         <p className="text-slate-600">
           Edit the instructions for the {categoryLabels[category].toLowerCase()} section.
         </p>
+      </div>
+
+      <div className="mb-4">
+        <span onClick={handleInsertHappy} className="cursor-pointer text-black hover:underline">
+        Add Bullet Points: shortcut: Alt + B
+        </span>
+        
       </div>
 
       {/* Quill Editor */}

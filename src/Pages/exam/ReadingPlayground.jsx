@@ -1,7 +1,10 @@
+import React from "react";
 import { Clock6 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import io from "socket.io-client";
+import "quill/dist/quill.snow.css";
+
 
 export default function ReadingPlayground({
   test,
@@ -362,67 +365,151 @@ export default function ReadingPlayground({
     );
   };
 
+  function cleanHTML(html) {
+    let cleaned = html
+      .replace(/\bclass="/g, 'className="')
+      .replace(/\bclassname="/gi, 'className="')
+      .replace(/className="ql-align-center"/g, 'className="text-center"')
+      .replace(/className="ql-align-right"/g, 'className="text-right"')
+      .replace(/<span className="ql-ui"[^>]*><\/span>/g, "")
+      .replace(/contenteditable="false"/gi, "");
+  
+    // FIX: Convert OL → UL if bullet items exist
+    cleaned = cleaned.replace(
+      /<ol([^>]*)>([\s\S]*?)<\/ol>/g,
+      (match, attrs, inner) => {
+        if (inner.includes('data-list="bullet"')) {
+          return `<ul className="list-disc list-inside ml-4">${inner}</ul>`;
+        }
+        return `<ol className="list-decimal list-inside ml-4">${inner}</ol>`;
+      }
+    );
+  
+    // Fix UL normally
+    cleaned = cleaned.replace(
+      /<ul([^>]*)>/g,
+      '<ul className="list-disc list-inside ml-4">'
+    );
+  
+    return cleaned;
+  }
+  
+  
+  
+  
   const renderType3 = (q) => {
     const passage = paper?.passages?.find(
       (p) => p.globalIndex === q.passageIndex
     );
-    const content = passage?.content || "";
-    const parts = content.split(/(\{gap\d+\})/g);
-    const usedLetters = Object.entries(answers)
-      .filter(([key]) => key.startsWith("gap-"))
-      .map(([, val]) => val);
+  
+    const rawHTML = passage?.content || "";
+    const safeHTML = cleanHTML(rawHTML);
+  
+    function renderHTMLWithGaps(html) {
+      const template = document.createElement("template");
+      template.innerHTML = html;
+    
+      function walk(node, key = "k") {
+        // TEXT NODE
+        if (node.nodeType === 3) {
+          const text = node.textContent;
+          const parts = text.split(/(\{gap\d+\})/g);
+    
+          if (parts.length === 1) return text;
+    
+          return parts.map((p, i) => {
+            const m = p.match(/\{gap(\d+)\}/);
+            if (!m) return p;
+    
+            const gap = m[1];
+            const assigned = answers[`gap-${gap}`];
+            const assignedSentence = q.sentences.find(
+              (s) => s.letter === assigned
+            );
+    
+            return (
+              <span
+                key={`gap-${gap}-${i}`}
+                className={`inline-block border rounded px-1 min-w-24 bg-white ${
+                  assigned ? "border-[#e94b1b]" : "border-gray-400"
+                }`}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const letter = e.dataTransfer.getData("text");
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [`gap-${gap}`]: letter,
+                  }));
+                }}
+                onDragOver={(e) => e.preventDefault()}
+              >
+                {assigned ? (
+                  <div className="flex justify-between">
+                    <span>{assignedSentence?.text}</span>
+                    <button
+                      className="text-red-500"
+                      onClick={() =>
+                        setAnswers((prev) => {
+                          const c = { ...prev };
+                          delete c[`gap-${gap}`];
+                          return c;
+                        })
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                )}
+              </span>
+            );
+          });
+        }
+    
+        // ELEMENT NODE
+        if (node.nodeType === 1) {
+          const tag = node.tagName.toLowerCase();
+          const attrs = {};
+    
+          [...node.attributes].forEach((a) => {
+            let name = a.name;
+            let value = a.value;
+    
+            if (name === "class") name = "className";
+    
+            attrs[name] = value;
+          });
+    
+          // Self-closing tags
+          if (["br", "hr", "img", "input"].includes(tag)) {
+            return React.createElement(tag, { ...attrs, key });
+          }
+    
+          const children = [...node.childNodes].map((child, i) =>
+            walk(child, `${key}-${i}`)
+          );
+    
+          return React.createElement(tag, { ...attrs, key }, children);
+        }
+    
+        return null;
+      }
+    
+      return [...template.content.childNodes].map((n, i) =>
+        walk(n, `root-${i}`)
+      );
+    }
+    
+  
+    const usedLetters = Object.values(answers);
+  
     return (
       <div className="p-4 flex gap-6">
-        <div className="flex-1 mb-4 bg-[#EEEEEE] p-4  text-[11px] border max-h-96 overflow-y-auto">
-          {parts.map((part, i) => {
-            if (part.match(/\{gap\d+\}/)) {
-              const gapNum = part.match(/\{gap(\d+)\}/)[1];
-              const assigned = answers[`gap-${gapNum}`];
-              const assignedSentence = q.sentences?.find(
-                (s) => s.letter === assigned
-              );
-              return (
-                <span
-                  key={i}
-                  className={`inline-block border-1 rounded-2xl min-h-4 bg-white min-w-30 text-center relative ${
-                    assigned ? "border-[#e94b1b]" : "border-gray-400"
-                  }`}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const sentenceLetter = e.dataTransfer.getData("text");
-                    setAnswers((prev) => ({
-                      ...prev,
-                      [`gap-${gapNum}`]: sentenceLetter,
-                    }));
-                  }}
-                  onDragOver={(e) => e.preventDefault()}
-                >
-                  {assigned ? (
-                    <div className="flex  border-amber-950  items-center justify-between mr-1 ml-1">
-                      <span>{assignedSentence?.text || assigned}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAnswers((prev) => {
-                            const newAnswers = { ...prev };
-                            delete newAnswers[`gap-${gapNum}`];
-                            return newAnswers;
-                          });
-                        }}
-                        className="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : (
-                    <div></div>
-                  )}
-                </span>
-              );
-            }
-            return <span key={i}>{part}</span>;
-          })}
+        <div className="flex-1 bg-[#EEEEEE] p-4 text-[11px] border max-h-96 overflow-y-auto ql-editor">
+          {renderHTMLWithGaps(safeHTML)}
         </div>
+  
         <div className="flex-1 space-y-2">
           {q.sentences?.map((sent) => {
             const isUsed = usedLetters.includes(sent.letter);
@@ -430,14 +517,16 @@ export default function ReadingPlayground({
               <div
                 key={sent.letter}
                 draggable={!isUsed}
-                onDragStart={(e) => e.dataTransfer.setData("text", sent.letter)}
-                className={`p-1 rounded-2xl text-[14px] border cursor-move last:mb-0 ${
+                onDragStart={(e) =>
+                  e.dataTransfer.setData("text", sent.letter)
+                }
+                className={`p-1 rounded-2xl text-[14px] border cursor-move ${
                   isUsed
                     ? "border-gray-300 bg-gray-200 text-gray-500"
                     : "border-[#ff3200] bg-[#f8b592] hover:bg-[#FFDFCA]"
                 }`}
               >
-                <div className="flex flex-col text-center ">
+                <div className="flex flex-col text-center">
                   <strong>{sent.letter}.</strong>
                   {sent.text}
                 </div>
@@ -448,6 +537,8 @@ export default function ReadingPlayground({
       </div>
     );
   };
+  
+  
 
   const renderType4 = (q) => {
     const usedTextLetters = Object.entries(answers)
@@ -862,8 +953,8 @@ export default function ReadingPlayground({
       <div className="mb-2 w-full flex justify-between">
         <div className="w-full flex items-center justify-end ">
           <div className="flex items-center gap-2 font-mono text-[13px] font-semibold   text-white ">
-            <button className="bg-[#FF3200]   pl-5 pr-5 ">Preview</button>
-            <button className="bg-[#FF3200]   pl-5 pr-5 ">Next</button>
+            <button className="bg-[#FF3200]   pl-5 pr-5 " onClick={() => onPartChange(Math.max(0, currentPart - 1))}>Preview</button>
+            <button className="bg-[#FF3200]   pl-5 pr-5 " onClick={() => onPartChange(currentPart + 1)} disabled={!paper?.questions?.some(q => q.unitNumber === currentPart + 2)}>Next</button>
             <button className="bg-[#FF3200]   pl-5 pr-5 " onClick={endExam}>
               End
             </button>
@@ -924,118 +1015,94 @@ export default function ReadingPlayground({
             </div>
           </div>
 
-          {/* Passage and Questions for Type 2 and Type 5 */}
           {currentQuestions.some(
-            (q) =>
-              q.type === "type2_gap_fill" ||
-              q.type === "type5_reading_comprehension"
-          ) ? (
-            <div className="flex w-full  gap-6 ">
-              {/* Passage Content (sticky, no height/width, no inner scroll) */}
-              {(() => {
-                const currentPassage = paper.passages?.find(
-                  (p) => p.unitNumber === currentPart + 1
-                );
+  (q) =>
+    q.type === "type2_gap_fill" ||
+    q.type === "type5_reading_comprehension"
+) ? (
+  <div className="flex w-full gap-6">
+    {/* Passage */}
+    {(() => {
+      const currentPassage = paper.passages?.find(
+        (p) => p.unitNumber === currentPart + 1
+      );
 
-                const type2Questions = currentQuestions
-                  .filter((q) => q.type === "type2_gap_fill")
-                  .sort((a, b) => a.order - b.order);
+      const type2Questions = currentQuestions
+        .filter((q) => q.type === "type2_gap_fill")
+        .sort((a, b) => a.order - b.order);
 
-                const hasType5 = currentQuestions.some(
-                  (q) => q.type === "type5_reading_comprehension"
-                );
+      const hasType5 = currentQuestions.some(
+        (q) => q.type === "type5_reading_comprehension"
+      );
 
-                let processedContent = currentPassage?.content;
+      let processedContent = currentPassage?.content;
 
-                if (processedContent && !hasType5) {
-                  processedContent = processedContent.replace(
-                    /\[GAP(\d+)\]/g,
-                    (match, num) => {
-                      const index = parseInt(num) - 1;
-                      const question = type2Questions[index];
-                      return question
-                        ? `<strong>(${question.order + 1})___________</strong>`
-                        : match;
-                    }
-                  );
-                }
+      if (processedContent && !hasType5) {
+        processedContent = processedContent.replace(
+          /\[GAP(\d+)\]/g,
+          (match, num) => {
+            const index = parseInt(num) - 1;
+            const question = type2Questions[index];
+            return question
+              ? `<strong>(${question.order + 1})...............</strong>`
+              : match;
+          }
+        );
+      }
 
-                return processedContent ? (
-                  <div className="flex-1 sticky top-24 self-start">
-                    <div className="bg-white border border-gray-200 p-4 rounded">
-                      <div
-                        className="text-gray-800 leading-relaxed [&>*]:my-0 [&>p]:my-0"
-                        dangerouslySetInnerHTML={{ __html: processedContent }}
-                      />
-                    </div>
-                  </div>
-                ) : null;
-              })()}
+      return processedContent ? (
+        <div className="flex-1 sticky top-0 self-start">
+          <div className="bg-white border border-gray-200 p-4 rounded">
+            <div
+              className="ql-editor text-gray-800 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: processedContent }}
+            />
+          </div>
+        </div>
+      ) : null;
+    })()}
 
-              {/* Questions area (normal flow; page scrolls these) */}
-              <div className="flex-1 space-y-6 ">
-                {currentQuestions.map((q) => (
-                  <article key={q._id} className="bg-white last:mb-0">
-                    <div className="p-1 pl-5 flex items-center bg-[#F7F7F7] border">
-                      <div className="text-2xl font-semibold">
-                        {q.order + 1}.
-                      </div>
-                      <div className="ml-6 flex items-center">
-                        {q.type !== "type3_sentence_completion" &&
-                          q.question && (
-                            <div
-                            // className="text-gray-800 font-medium m-0"
-                            // dangerouslySetInnerHTML={{
-                            //   __html: q.question.replace(
-                            //     /\*\*(.*?)\*\*/g,
-                            //     "<strong>$1</strong>"
-                            //   ),
-                            // }}
-                            />
-                          )}
-                      </div>
-                    </div>
-
-                    {renderQuestion(q)}
-                  </article>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {currentQuestions.length === 0 ? (
-                <div className="p-8 bg-white border rounded text-gray-500">
-                  No questions available for this section
-                </div>
-              ) : (
-                currentQuestions.map((q) => (
-                  <article key={q._id} className="bg-white last:mb-0">
-                    <div className="p-1 pl-5 flex items-center bg-[#F7F7F7] border">
-                      <div className="text-2xl font-semibold">
-                        {q.order + 1}.
-                      </div>
-                      <div className="ml-6 flex items-center">
-                        {q.type !== "type3_sentence_completion" &&
-                          q.question && (
-                            <div
-                              className="text-gray-800 font-medium m-0"
-                              dangerouslySetInnerHTML={{
-                                __html: q.question.replace(
-                                  /\*\*(.*?)\*\*/g,
-                                  "<strong>$1</strong>"
-                                ),
-                              }}
-                            />
-                          )}
-                      </div>
-                    </div>
-
-                    {renderQuestion(q)}
-                  </article>
-                ))
+    {/* Questions */}
+    <div className="flex-1 space-y-6">
+      {currentQuestions.map((q) => (
+        <article key={q._id} className="bg-white">
+          <div className="p-1 pl-5 flex items-center bg-[#F7F7F7] border">
+            <div className="text-2xl font-semibold">{q.order + 1}.</div>
+            <div className="ml-6">
+              {q.question && (
+                <div
+                  className="text-gray-800 font-medium"
+                  dangerouslySetInnerHTML={{ __html: q.question }}
+                />
               )}
             </div>
-          )}
+          </div>
+          {renderQuestion(q)}
+        </article>
+      ))}
+    </div>
+  </div>
+) : (
+  /* fallback when no passage type */
+  <div className="space-y-6">
+    {currentQuestions.map((q) => (
+      <article key={q._id} className="bg-white">
+        <div className="p-1 pl-5 flex items-center bg-[#F7F7F7] border">
+          <div className="text-2xl font-semibold">{q.order + 1}.</div>
+          <div className="ml-6">
+            {/* {q.question && (
+              <div
+                className="text-gray-800 font-medium"
+                dangerouslySetInnerHTML={{ __html: q.question }}
+              />
+            )} */}
+          </div>
+        </div>
+        {renderQuestion(q)}
+      </article>
+    ))}
+  </div>
+)}
 
           {/* Buttons */}
           <div className="mt-8 flex justify-center gap-4">

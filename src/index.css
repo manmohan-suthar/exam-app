@@ -96,6 +96,41 @@ body {
   min-height: 350px;
   font-size: 16px;
 }
+
 .quill-editor {
   height: 400px;
+}
+
+/* ALIGNMENT FIXES */
+.ql-editor .ql-align-center {
+  text-align: center;
+}
+
+.ql-editor .ql-align-right {
+  text-align: right;
+}
+
+.ql-editor .ql-align-justify {
+  text-align: justify;
+}
+
+/* -------------------------------------- */
+/* ⭐ FINAL FIX FOR LISTS – NO CONFLICTS ⭐ */
+/* -------------------------------------- */
+
+/* Bullet list */
+.ql-editor ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+}
+
+/* Number list */
+.ql-editor ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+}
+
+/* LI should inherit from UL/OL */
+.ql-editor li {
+  list-style-type: inherit !important;
 }

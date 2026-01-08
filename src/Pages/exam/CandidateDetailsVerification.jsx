@@ -43,14 +43,17 @@ const CandidateDetailsVerification = () => {
   }, []);
 
   useEffect(() => {
-    if (student) {
-      // Fetch assignments
+    const examAssignment = location.state?.examAssignment;
+    if (examAssignment) {
+      setAssignments([examAssignment]);
+      localStorage.setItem("assignments", JSON.stringify([examAssignment]));
+    } else if (student) {
+      // Fallback: fetch all assignments if no specific assignment passed
       const fetchAssignments = async () => {
-       
         setError(null);
         try {
           const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/exam-assignments?student_id=${student.student_id}`);
-        
+
           if (!response.ok) {
             const errorText = await response.text();
             console.error('CandidateDetailsVerification: Failed to fetch assignments, status:', response.status, 'text:', errorText);
@@ -58,7 +61,6 @@ const CandidateDetailsVerification = () => {
             throw new Error('Failed to fetch assignments');
           }
           const data = await response.json();
-      
 
           setAssignments(data.assignments);
           localStorage.setItem("assignments", JSON.stringify(data.assignments));
@@ -69,7 +71,7 @@ const CandidateDetailsVerification = () => {
       };
       fetchAssignments();
     }
-  }, [student]);
+  }, [student, location.state]);
 
   const testsData = assignments.flatMap(assignment => {
     if (Array.isArray(assignment.exam_type)) {

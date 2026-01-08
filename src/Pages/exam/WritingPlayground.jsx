@@ -1,6 +1,8 @@
 import { Clock6 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import Quill from "quill";
+import "quill/dist/quill.snow.css";
 
 const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompleted }) => {
   const [paper, setPaper] = useState(null);
@@ -16,7 +18,8 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
   const [isUndoing, setIsUndoing] = useState(false);
 
   const navigate = useNavigate();
-  const textareaRef = useRef(null);
+  const editorRef = useRef(null);
+  const quillRef = useRef(null);
   const saveTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -84,6 +87,32 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
     fetchData();
   }, [test]);
 
+  
+
+  useEffect(() => {
+    if (!paper) return;
+    if (!editorRef.current) return;
+    if (quillRef.current) return;
+
+    quillRef.current = new Quill(editorRef.current, {
+      theme: "snow",
+      placeholder: "Write your answer here...",
+      modules: {
+        toolbar: [
+          ["bold", "italic", "underline"],
+          [{ list: "bullet" }],
+          ["clean"],
+        ],
+      },
+    });
+
+    // ✅ SET INITIAL CONTENT
+    quillRef.current.root.innerHTML = answers[currentTask] || "";
+  }, [paper]);
+  
+  
+  
+
   // Timer countdown
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0) return;
@@ -118,92 +147,33 @@ const WritingPlayground = ({ test, currentTask = 1, onTaskChange, onWritingCompl
 
 // ✅ Initialize history ONLY when task changes
 useEffect(() => {
-  if (paper && currentTask) {
-    const initialText = answers[currentTask] || "";
-    setHistory([initialText]);
-    setCurrentHistoryIndex(0);
-  }
-}, [paper, currentTask]);
+  if (!quillRef.current) return;
 
+  const html = answers[currentTask] || "";
+  quillRef.current.setContents([]);
+  quillRef.current.clipboard.dangerouslyPasteHTML(html);
+}, [currentTask]);
 
-  // Toolbar handlers
-  const handleUndo = () => {
-    if (currentHistoryIndex > 0) {
-      setIsUndoing(true);
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      const newIndex = currentHistoryIndex - 1;
-      setCurrentHistoryIndex(newIndex);
-      const undoneText = history[newIndex];
-      setAnswers((prev) => ({ ...prev, [currentTask]: undoneText }));
-      // Restore cursor if possible
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-        }
-        setIsUndoing(false);
-      }, 0);
-    }
+// Text change handler that updates the correct task
+useEffect(() => {
+  if (!quillRef.current) return;
+
+  const handleTextChange = () => {
+    const html = quillRef.current.root.innerHTML;
+    setAnswers((prev) => ({
+      ...prev,
+      [currentTask]: html,
+    }));
   };
 
-  const handleRedo = () => {
-    if (currentHistoryIndex < history.length - 1) {
-      setIsUndoing(true);
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      const newIndex = currentHistoryIndex + 1;
-      setCurrentHistoryIndex(newIndex);
-      const redoneText = history[newIndex];
-      setAnswers((prev) => ({ ...prev, [currentTask]: redoneText }));
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-        }
-        setIsUndoing(false);
-      }, 0);
-    }
+  quillRef.current.on("text-change", handleTextChange);
+
+  return () => {
+    quillRef.current.off("text-change", handleTextChange);
   };
+}, [currentTask]);
 
-  const applyFormat = (format) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = answers[currentTask] || "";
-    const selectedText = text.substring(start, end);
-
-    let formattedText = selectedText;
-    if (format === 'bold') {
-      formattedText = `**${selectedText}**`;
-    } else if (format === 'italic') {
-      formattedText = `*${selectedText}*`;
-    } else if (format === 'underline') {
-      formattedText = `__${selectedText}__`;
-    }
-
-    const newText = text.substring(0, start) + formattedText + text.substring(end);
-    setAnswers((prev) => ({ ...prev, [currentTask]: newText }));
-
-    // Clear any pending debounced save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    addToHistory(newText);
-
-    // Restore focus and cursor position
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = start + formattedText.length;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleBold = () => applyFormat('bold');
-  const handleItalic = () => applyFormat('italic');
-  const handleUnderline = () => applyFormat('underline');
 
   // Format time helper
   const formatTime = (s) => {
@@ -211,6 +181,13 @@ useEffect(() => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
     return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  // Word count from HTML
+  const getWordCount = (html) => {
+    if (!html) return 0;
+    const text = html.replace(/<[^>]*>/g, "").trim();
+    return text.split(/\s+/).filter(Boolean).length;
   };
 
 
@@ -418,62 +395,24 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* Answer Area */}
-                <div className="flex-1 space-y-6">
-  <div className="bg-white border border-gray-200 rounded overflow-hidden">
+{/* QUILL WRAPPER */}
+<div className="bg-white border border-gray-200 rounded overflow-hidden">
 
-    {/* ===== HEADER TOOLBAR ===== */}
-    <div className="flex items-center justify-between px-3 py-2 bg-gray-100 border-b border-gray-100">
-      
-      {/* Left tools */}
-      <div className="flex items-center gap-1">
-     
-
-     
-
-        <button onClick={handleBold} className="px-2 py-1 border border-gray-200 rounded font-bold hover:bg-gray-200">
-          B
-        </button>
-        <button onClick={handleItalic} className="px-2 py-1 border border-gray-200 rounded italic hover:bg-gray-200">
-          I
-        </button>
-        <button onClick={handleUnderline} className="px-2 py-1 border rounded underline border-gray-200 hover:bg-gray-200">
-          U
-        </button>
-      </div>
-
-      {/* Right side word count */}
-      <span className="text-sm text-gray-600">
-        Words:{" "}
-        {
-          (answers[currentTask] || "").trim().split(/\s+/).filter(Boolean).length
-        }
-      </span>
-    </div>
-
-    {/* ===== TEXTAREA ===== */}
-    <textarea
-  ref={textareaRef}
-  value={answers[currentTask] || ""}
-  tabIndex={0}
-  autoFocus
-  onChange={(e) => {
-    const newText = e.target.value;
-    handleAnswerChange(currentTask, newText);
-
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      if (!isUndoing) {
-        addToHistory(newText);
-      }
-    }, 800);
-  }}
-  placeholder="Write your answer here..."
-  className="relative z-10 w-full min-h-[400px] p-4 resize-none outline-none border-none"
+  {/* WORD COUNT */}
+  <div className="flex justify-end px-3 py-2 bg-gray-100 border-b">
+    <span className="text-sm text-gray-600">
+      Words: {getWordCount(answers[currentTask])}
+    </span>
+  </div>
+  <div
+  ref={editorRef}
+  className="bg-white"
+  style={{ height: "300px" }}
 />
 
-  </div>
+
 </div>
+
 
               </div>
             );

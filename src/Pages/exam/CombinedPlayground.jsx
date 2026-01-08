@@ -163,15 +163,17 @@ const CombinedPlayground = () => {
               const d = await res.json();
               const paper = d.paper;
           
-              const parts = paper.passages.map((s, idx) => {
-                if (idx === 0) {
-                  return { label: "Reading Part 1a" };
-                }
-                if (idx === 1) {
-                  return { label: "Reading Part 1b" };
-                }
-                return { label: `Reading Part ${idx}` };
-              });
+              const parts = paper.passages
+                .filter((s, idx) => paper.questions?.some(q => q.unitNumber === idx + 1))
+                .map((s, idx) => {
+                  if (idx === 0) {
+                    return { label: "Reading Part 1a" };
+                  }
+                  if (idx === 1) {
+                    return { label: "Reading Part 1b" };
+                  }
+                  return { label: `Reading Part ${idx}` };
+                });
           
               data.push({
                 key: "reading",
